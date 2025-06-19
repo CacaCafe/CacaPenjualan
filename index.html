@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Form Penjualan Barang</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Menu Button -->
+
+<!-- Sidebar Navigation -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h3>Menu</h3>
+    <button onclick="closeSidebar()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">×</button>
+  </div>
+  <div class="sidebar-content">
+    <ul class="sidebar-menu">
+      <li><a href="#" onclick="closeSidebar()">🏠 Beranda</a></li>
+      <li><a href="#" onclick="showSalesReport(); closeSidebar()">📊 Laporan Penjualan</a></li>
+      <li><a href="#" onclick="showCategoryModal(); closeSidebar()">🗂️ Kelola Kategori</a></li>
+      <li><a href="#" onclick="showSettings(); closeSidebar()">⚙️ Pengaturan</a></li>
+      <li><a href="#" onclick="showBackupRestore(); closeSidebar()">💾 Backup & Restore</a></li>
+      <li><a href="#" onclick="showHelp(); closeSidebar()">❓ Bantuan</a></li>
+    </ul>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+
+  <div class="storage-warning" id="storageWarning"></div>
+
+      <!-- Menu Bar -->
+  <div class="menu-bar">
+    <button class="menu-button" id="menuButton">☰</button>
+    <input type="text" id="searchInput" placeholder="Cari barang...">
+    <button class="theme-toggle" id="themeToggle">🌙</button>
+  </div>
+
+
+  <div class="navbar">
+    <button onclick="showTab('stiker')" class="active">Stiker</button>
+    <button onclick="showTab('poster')">Poster</button>
+    <button onclick="showTab('ganci')">Ganci</button>
+    <button onclick="showTab('standee')">Standee</button>
+    <button onclick="showTab('penggaris')">Penggaris</button>
+    <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
+    
+    
+  </div>
+
+
+<div class="">
+  <div class="sales-section">
+    <button id="salesTab" onclick="toggleSales()">📊 Lihat Data Penjualan</button>
+    <div id="salesData"></div>
+  </div>
+
+<!-- Cart Preview Modal -->
+<div id="cartModal" class="cart-modal">
+  <div class="cart-modal-header">
+    <span>Keranjang Belanja</span>
+    <button onclick="closeCartModal()" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">×</button>
+  </div>
+  <div class="cart-modal-content" id="cartModalContent">
+    <!-- Daftar item akan dimuat di sini -->
+  </div>
+  <div class="cart-modal-footer">
+    <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
+    <button onclick="confirmCheckout()" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">Checkout</button>
+  </div>
+</div>
+
+  <div id="stiker" class="tab-content active">
+    <div class="product-list" id="stiker-list"></div>
+    <form class="add-form" onsubmit="addProduct(event, 'stiker')">
+      <p>Nama Barang</p>
+      <input type="text" name="name" placeholder="Nama Barang" required />
+      <input type="file" name="imageFile" accept="image/*" required onchange="previewImage(event, this)" />
+      <img class="preview" />
+      <p>harga</p>
+      <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
+      <p>Stok</p>
+      <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
+      <p>Stok Limit</p>
+      <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
+      <button type="submit">➕ Tambah Barang</button>
+    </form>
+  </div>
+
+
+
+
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <button class="close-modal" onclick="closeEditModal()">×</button>
+      <form class="edit-form" onsubmit="saveEditedProduct(event)">
+        <input type="hidden" name="category" id="editCategory">
+        <input type="hidden" name="index" id="editIndex">
+        <input type="text" name="name" id="editName" placeholder="Nama Barang" required />
+        <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
+        <img class="preview" id="editPreview" />
+        <input type="number" name="price" id="editPrice" placeholder="Harga (Rp)" required min="0" />
+        <input type="number" name="stock" id="editStock" placeholder="Stok Barang" required min="0" />
+        <input type="number" name="minStock" id="editMinStock" placeholder="Stok Minimum" required min="0" />
+        <button type="submit">💾 Simpan Perubahan</button>
+      </form>
+    </div>
+  </div>
+
+<!-- Category Modal -->
+<div id="categoryModal" class="modal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeCategoryModal()">×</button>
+    <h3>Kelola Jenis Barang</h3>
+    
+    <form onsubmit="addNewCategory(event)">
+      <input type="text" id="newCategoryName" placeholder="Nama Jenis Barang Baru" required />
+      <button type="submit">➕ Tambah Jenis Barang</button>
+    </form>
+    
+    <div class="category-list" id="categoryList"></div>
+  </div>
+</div>
+ 
+
+  &nbsp;
+<!-- Floating Cart Button -->
+  <button id="cartButton">
+    🛒
+    <span class="badge" id="cartBadge">0</span>
+  </button>
+
+  <!-- Notification Popup -->
+  <div id="notification" class="notification" style="display: none;"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
