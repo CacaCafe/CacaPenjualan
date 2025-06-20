@@ -81,7 +81,7 @@
     <form class="add-form" onsubmit="addProduct(event, 'stiker')">
       <p>Nama Barang</p>
       <input type="text" name="name" placeholder="Nama Barang" required />
-     <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
+     <input type="file" name="imageFile" accept="image/*" capture="user" required onchange="previewImage(event, this)" />
       <img class="preview" />
       <p>harga</p>
       <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
@@ -94,22 +94,33 @@
   </div>
 
   <!-- Edit Modal -->
-  <div id="editModal" class="modal">
-    <div class="modal-content">
-      <button class="close-modal" onclick="closeEditModal()">×</button>
-      <form class="edit-form" onsubmit="saveEditedProduct(event)">
-        <input type="hidden" name="category" id="editCategory">
-        <input type="hidden" name="index" id="editIndex">
-        <input type="text" name="name" id="editName" placeholder="Nama Barang" required />
-        <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
-        <img class="preview" id="editPreview" />
-        <input type="number" name="price" id="editPrice" placeholder="Harga (Rp)" required min="0" />
-        <input type="number" name="stock" id="editStock" placeholder="Stok Barang" required min="0" />
-        <input type="number" name="minStock" id="editMinStock" placeholder="Stok Minimum" required min="0" />
-        <button type="submit">💾 Simpan Perubahan</button>
-      </form>
-    </div>
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeEditModal()">×</button>
+    <form class="edit-form" onsubmit="saveEditedProduct(event)">
+      <input type="hidden" name="category" id="editCategory">
+      <input type="hidden" name="index" id="editIndex">
+      
+      <label>Nama Barang</label>
+      <input type="text" name="name" id="editName" required>
+      
+      <label>Gambar Barang</label>
+      <input type="file" name="imageFile" id="editImageFile" accept="image/*">
+      <img class="preview" id="editPreview">
+      
+      <label>Harga</label>
+      <input type="number" name="price" id="editPrice" required min="0">
+      
+      <label>Stok</label>
+      <input type="number" name="stock" id="editStock" required min="0">
+      
+      <label>Stok Minimum</label>
+      <input type="number" name="minStock" id="editMinStock" required min="0">
+      
+      <button type="submit">💾 Simpan Perubahan</button>
+    </form>
   </div>
+</div>
 
   <!-- Category Modal -->
   <div id="categoryModal" class="modal">
