@@ -24,20 +24,15 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Event listeners
   document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
-  document.getElementById('menuButton').addEventListener('click', toggleSidebar);
-  document.getElementById('cartButton').addEventListener('click', function() {
-    if (cart.length > 0) {
-      showCartModal();
-    } else {
-      showNotification('Keranjang kosong!');
-    }
-  });
-  
-  // Search functionality
-  document.getElementById('searchInput').addEventListener('input', function(event) {
-    const searchTerm = event.target.value.toLowerCase();
-    filterProducts(searchTerm);
-  });
+  // ... event listeners lainnya
+
+  // Load active tab
+  const savedTab = localStorage.getItem('activeTab');
+  if (savedTab && document.getElementById(savedTab)) {
+    showTab(savedTab);
+  } else {
+    showTab('stiker');
+  }
 });
 
 // Sidebar functions
@@ -186,7 +181,7 @@ function sortSalesTable(column) {
     if (column === 'name') {
       return a.name.localeCompare(b.name) * sortDirection;
     } else if (column === 'time') {
-      return new Date(a.time) - new Date(b.time) * sortDirection;
+      return (new Date(a.time) - new Date(b.time)) * sortDirection;
     } else {
       return (a[column] - b[column]) * sortDirection;
     }
@@ -368,83 +363,34 @@ function saveToIndexedDB(storeName, data) {
       reject(new Error("Database belum diinisialisasi"));
       return;
     }
-    
+
     const transaction = db.transaction([storeName], 'readwrite');
+    transaction.onerror = (event) => reject(event.target.error);
+    
     const store = transaction.objectStore(storeName);
-    
-    // Clear existing data
     const clearRequest = store.clear();
-    
+
     clearRequest.onsuccess = () => {
-      // Add new data
-      if (Array.isArray(data)) {
-        // Untuk array data
+      try {
+        const items = Array.isArray(data) ? data : 
+                     (typeof data === 'object' ? Object.values(data).flat() : []);
+        
+        if (items.length === 0) return resolve();
+
         let completed = 0;
-        let hasError = false;
-        
-        if (data.length === 0) {
-          resolve();
-          return;
-        }
-        
-        data.forEach(item => {
+        items.forEach(item => {
           const request = store.add(item);
-          
-          request.onerror = (event) => {
-            if (!hasError) {
-              hasError = true;
-              reject(event.target.error);
-            }
-          };
-          
+          request.onerror = () => reject(request.error);
           request.onsuccess = () => {
-            completed++;
-            if (completed === data.length && !hasError) {
-              resolve();
-            }
+            if (++completed === items.length) resolve();
           };
         });
-      } else if (typeof data === 'object') {
-        // Untuk object data (products)
-        let completed = 0;
-        let hasError = false;
-        const allItems = [];
-        
-        // Convert products object to array
-        Object.keys(data).forEach(category => {
-          data[category].forEach(product => {
-            allItems.push(product);
-          });
-        });
-        
-        if (allItems.length === 0) {
-          resolve();
-          return;
-        }
-        
-        allItems.forEach(item => {
-          const request = store.add(item);
-          
-          request.onerror = (event) => {
-            if (!hasError) {
-              hasError = true;
-              reject(event.target.error);
-            }
-          };
-          
-          request.onsuccess = () => {
-            completed++;
-            if (completed === allItems.length && !hasError) {
-              resolve();
-            }
-          };
-        });
+      } catch (error) {
+        reject(error);
       }
     };
-    
-    clearRequest.onerror = (event) => {
-      reject(event.target.error);
-    };
+
+    clearRequest.onerror = (event) => reject(event.target.error);
   });
 }
 
@@ -584,15 +530,40 @@ function capitalizeFirstLetter(string) {
 
 // Pada fungsi showTab(), ubah selektor untuk navbar yang benar
 function showTab(tabName) {
+  // Sembunyikan semua tab content
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-  document.querySelectorAll('.main-navbar button').forEach(btn => {
+  
+  // Hapus kelas active dari semua tombol kategori (kecuali tombol manage category)
+  document.querySelectorAll('.navbar button').forEach(btn => {
     if (!btn.classList.contains('manage-category')) {
       btn.classList.remove('active');
+      btn.classList.remove('active-category'); // Hapus class active-category
     }
   });
+  
+  // Tampilkan tab yang dipilih
   document.getElementById(tabName).classList.add('active');
-  document.querySelector(`.main-navbar button[onclick="showTab('${tabName}')"]`).classList.add('active');
+  
+  // Tambahkan kelas active-category ke tombol yang sesuai
+  const activeButton = document.querySelector(`.navbar button[onclick="showTab('${tabName}')"]`);
+  if (activeButton) {
+    activeButton.classList.add('active');
+    activeButton.classList.add('active-category'); // Tambahkan class active-category
+  }
+  
+  // Simpan tab yang sedang aktif di localStorage
+  localStorage.setItem('activeTab', tabName);
 }
+
+// Pada saat load, cek apakah ada tab yang aktif disimpan
+document.addEventListener('DOMContentLoaded', function() {
+  const savedTab = localStorage.getItem('activeTab');
+  if (savedTab) {
+    showTab(savedTab);
+  } else {
+    showTab('stiker'); // Default tab
+  }
+});
 
 function formatRupiah(number) {
   return new Intl.NumberFormat('id-ID', { style: 'decimal' }).format(number);
@@ -713,25 +684,40 @@ function decreaseQuantity(category, index) {
 }
 
 async function updateCart(category, index, qty) {
-  const product = data[category][index];
-  const cartItem = cart.find(c => c.name === product.name);
-  
-  if (cartItem) {
-    if (qty === 0) {
-      cart.splice(cart.indexOf(cartItem), 1);
-    } else {
-      cartItem.qty = qty;
+  try {
+    const product = data[category]?.[index];
+    if (!product) {
+      throw new Error('Produk tidak ditemukan');
     }
-  } else if (qty > 0) {
-    cart.push({ ...product, qty });
-  }
-  
-  await saveToIndexedDB(STORE_NAMES.CART, cart);
-  updateCartBadge();
-  
-  // Jika modal keranjang terbuka, update isinya
-  if (document.getElementById('cartModal').style.display === 'flex') {
-    renderCartModalContent();
+    
+    // Cari item di cart
+    const cartIndex = cart.findIndex(item => item.name === product.name);
+    
+    if (qty > 0) {
+      // Update atau tambahkan ke cart
+      const cartItem = {
+        name: product.name,
+        price: product.price,
+        qty: qty,
+        category: category,
+        image: product.image
+      };
+      
+      if (cartIndex >= 0) {
+        cart[cartIndex] = cartItem;
+      } else {
+        cart.push(cartItem);
+      }
+    } else if (cartIndex >= 0) {
+      // Hapus dari cart jika qty = 0
+      cart.splice(cartIndex, 1);
+    }
+    
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    updateCartBadge();
+  } catch (error) {
+    console.error('Error in updateCart:', error);
+    showNotification('Gagal memperbarui keranjang');
   }
 }
 
@@ -889,7 +875,7 @@ async function saveEditedProduct(event) {
   const price = parseInt(form.price.value);
   const stock = parseInt(form.stock.value);
   const minStock = parseInt(form.minStock.value);
-  const fileInput = form.imageFile;
+  const fileInput = document.getElementById('editImageFile');
   
   if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0) {
     alert("Harap isi semua data dengan benar!");
@@ -1053,39 +1039,34 @@ async function addProduct(event, category) {
 }
 
 // Ganti fungsi previewImage dengan ini
-function previewImage(event, input) {
-  const preview = input.parentElement.querySelector('img.preview');
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    
-    // Validasi tipe file
-    if (!file.type.match('image.*')) {
-      showNotification('Hanya file gambar yang diizinkan!');
-      input.value = ''; // Reset input
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-      
-      // Perbaikan orientasi untuk gambar dari kamera
-      EXIF.getData(file, function() {
-        const orientation = EXIF.getTag(this, 'Orientation');
-        if (orientation && orientation > 1) {
-          fixImageOrientation(preview, orientation);
-        }
-      });
-    };
-    reader.onerror = function() {
-      showNotification('Gagal membaca file gambar!');
-      input.value = '';
-    };
-    reader.readAsDataURL(file);
-  } else {
-    preview.style.display = 'none';
+function previewImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validasi tipe file
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!validTypes.includes(file.type)) {
+    showNotification('Hanya file gambar (JPEG/PNG/WEBP) yang diizinkan!');
+    event.target.value = ''; // Reset input
+    return;
   }
+
+  // Validasi ukuran file (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    showNotification('Ukuran gambar terlalu besar! Maksimal 5MB.');
+    event.target.value = '';
+    return;
+  }
+
+  const preview = event.target.nextElementSibling; // Ambil elemen img berikutnya
+  const reader = new FileReader();
+  
+  reader.onload = function(e) {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+  };
+  
+  reader.readAsDataURL(file);
 }
 
 // Fungsi untuk memperbaiki orientasi gambar
@@ -1302,15 +1283,15 @@ async function addNewCategory(event) {
   newTabContent.innerHTML = `
     <div class="product-list" id="${name}-list"></div>
     <form class="add-form" onsubmit="addProduct(event, '${name}')">
-    <p>Nama Barang</p>
+      <p>Nama Barang</p>
       <input type="text" name="name" placeholder="Nama Barang" required />
-      <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
+      <input type="file" name="imageFile" accept="image/*" required onchange="previewImage(event, this)" />
       <img class="preview" />
-      <p>Harga Barang</p>
+      <p>Harga</p>
       <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
-      <p>Stok barang</p>
+      <p>Stok</p>
       <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
-      <p>Batas Stok barang</p>
+      <p>Stok Limit</p>
       <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
       <button type="submit">➕ Tambah Barang</button>
     </form>
@@ -1360,8 +1341,8 @@ async function deleteCategory(category, index) {
     // Hapus tombol navbar
     const navbarButtons = Array.from(document.querySelectorAll('.navbar button'));
     const buttonToRemove = navbarButtons.find(button => 
-      button.textContent.toLowerCase() === removedCategory
-    );
+  button.textContent.trim().toLowerCase() === removedCategory.toLowerCase()
+   );
     if (buttonToRemove) buttonToRemove.remove();
     
     // Jika kategori yang dihapus sedang aktif, pindah ke kategori pertama
@@ -1408,7 +1389,30 @@ function updateNavbarCategories() {
         <form class="add-form" onsubmit="addProduct(event, '${category}')">
           <p>Nama Barang</p>
           <input type="text" name="name" placeholder="Nama Barang" required />
-          <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
+          <div class="image-input-container">
+  <!-- Tombol Pilihan -->
+  <div class="image-source-buttons">
+    <button type="button" class="image-source-btn" onclick="openCamera()">
+      📷 Kamera
+    </button>
+    <button type="button" class="image-source-btn" onclick="openGallery()">
+      🖼️ Galeri
+    </button>
+  </div>
+
+  <!-- Input File Tersembunyi -->
+  <input 
+    type="file" 
+    id="imageInput"
+    name="imageFile" 
+    accept="image/jpeg, image/png" 
+    style="display: none"
+    onchange="previewImage(event)"
+  >
+  
+  <!-- Preview Gambar -->
+  <img id="imagePreview" class="preview" style="display: none"/>
+</div>
           <img class="preview" />
           <p>Harga</p>
           <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
@@ -1601,4 +1605,55 @@ async function resetAllData() {
       showNotification('Gagal mereset data!');
     }
   }
+}
+
+// Fungsi untuk membuka kamera
+function openCamera() {
+  const input = document.getElementById('imageInput');
+  input.removeAttribute('capture'); // Hapus atribut capture lama
+  input.setAttribute('capture', 'environment'); // Kamera belakang
+  input.click();
+}
+
+// Fungsi untuk membuka galeri
+function openGallery() {
+  const input = document.getElementById('imageInput');
+  input.removeAttribute('capture'); // Pastikan tidak ada atribut capture
+  input.click();
+}
+
+// Fungsi preview gambar (modifikasi dari yang sudah ada)
+function previewImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validasi format file
+  const validTypes = ['image/jpeg', 'image/png'];
+  if (!validTypes.includes(file.type)) {
+    showNotification('Hanya format JPEG/PNG yang diizinkan!');
+    return;
+  }
+
+  const preview = document.getElementById('imagePreview');
+  const reader = new FileReader();
+  
+  reader.onload = function(e) {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    
+    // Perbaikan orientasi untuk gambar dari kamera
+    EXIF.getData(file, function() {
+      const orientation = EXIF.getTag(this, 'Orientation');
+      if (orientation && orientation > 1) {
+        fixImageOrientation(preview, orientation);
+      }
+    });
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+function showCategoryModal() {
+  renderCategoryList();
+  document.getElementById('categoryModal').style.display = 'flex';
 }
