@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Event listeners
   document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
   // ... event listeners lainnya
-
+   document.getElementById('cartButton').addEventListener('click', showCartModal);
   // Load active tab
   const savedTab = localStorage.getItem('activeTab');
   if (savedTab && document.getElementById(savedTab)) {
