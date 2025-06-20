@@ -637,10 +637,10 @@ function renderProducts() {
           <button onclick="increaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>+</button>
         </div>
         <div class="button-group">
-          <button class="action-btn btn-edit" onclick="editProduct('${category}', ${index})">✏️ </button>
-          <button class="action-btn btn-delete" onclick="deleteProduct('${category}', ${index})">🗑️ </button>
-          <button class="action-btn btn-soldout ${item.soldOut ? 'active' : ''}" onclick="toggleSoldOut('${category}', ${index})">
-            ${item.soldOut ? '🛑 Sold Out' : '⚠️ '}
+          <button class="action-btn btn-edit" onclick="editProduct('${category}', ${index}); event.stopPropagation();">✏️</button>
+          <button class="action-btn btn-delete" onclick="deleteProduct('${category}', ${index}); event.stopPropagation();">🗑️</button>
+          <button class="action-btn btn-soldout ${item.soldOut ? 'active' : ''}" onclick="toggleSoldOut('${category}', ${index}); event.stopPropagation();">
+            ${item.soldOut ? '🛑' : '⚠️'}
           </button>
         </div>
       `;
@@ -650,6 +650,27 @@ function renderProducts() {
       if (cartItem) {
         card.querySelector(`#qty-${category}-${index}`).value = cartItem.qty;
       }
+      
+      // Tambahkan event listener untuk gambar produk
+      const img = card.querySelector('.product-img');
+      const buttonGroup = card.querySelector('.button-group');
+      
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Sembunyikan semua button group lainnya
+        document.querySelectorAll('.button-group').forEach(group => {
+          if (group !== buttonGroup) group.style.display = 'none';
+        });
+        // Toggle button group ini
+        buttonGroup.style.display = buttonGroup.style.display === 'flex' ? 'none' : 'flex';
+      });
+      
+      // Sembunyikan button group saat klik di luar
+      document.addEventListener('click', (e) => {
+        if (!card.contains(e.target)) {
+          buttonGroup.style.display = 'none';
+        }
+      });
       
       container.appendChild(card);
     });
