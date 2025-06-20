@@ -23,8 +23,15 @@
       <li><a href="#" onclick="closeSidebar()">🏠 Beranda</a></li>
       <li><a href="#" onclick="showSalesReport(); closeSidebar()">📊 Laporan Penjualan</a></li>
       <li><a href="#" onclick="showCategoryModal(); closeSidebar()">🗂️ Kelola Kategori</a></li>
+      <li>
+        <a href="#" onclick="toggleBackupMenu(event)">💾 Backup & Restore ▼</a>
+        <ul class="submenu" id="backupSubmenu" style="display: none;">
+          <li><a href="#" onclick="exportData()">📥 Export Data</a></li>
+          <li><a href="#" onclick="showImportDialog()">📤 Import Data</a></li>
+          <li><a href="#" onclick="resetAllData()">🔄 Reset Semua Data</a></li>
+        </ul>
+      </li>
       <li><a href="#" onclick="showSettings(); closeSidebar()">⚙️ Pengaturan</a></li>
-      <li><a href="#" onclick="showBackupRestore(); closeSidebar()">💾 Backup & Restore</a></li>
       <li><a href="#" onclick="showHelp(); closeSidebar()">❓ Bantuan</a></li>
     </ul>
   </div>
@@ -33,16 +40,14 @@
 <!-- Overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-
   <div class="storage-warning" id="storageWarning"></div>
 
-      <!-- Menu Bar -->
+  <!-- Menu Bar -->
   <div class="menu-bar">
     <button class="menu-button" id="menuButton">☰</button>
     <input type="text" id="searchInput" placeholder="Cari barang...">
     <button class="theme-toggle" id="themeToggle">🌙</button>
   </div>
-
 
   <div class="navbar">
     <button onclick="showTab('stiker')" class="active">Stiker</button>
@@ -51,38 +56,34 @@
     <button onclick="showTab('standee')">Standee</button>
     <button onclick="showTab('penggaris')">Penggaris</button>
     <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
-    
-    
   </div>
 
-
-<div class="">
   <div class="sales-section">
     <button id="salesTab" onclick="toggleSales()">📊 Lihat Data Penjualan</button>
     <div id="salesData"></div>
   </div>
 
-<!-- Cart Preview Modal -->
-<div id="cartModal" class="cart-modal">
-  <div class="cart-modal-header">
-    <span>Keranjang Belanja</span>
-    <button onclick="closeCartModal()" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">×</button>
+  <!-- Cart Preview Modal -->
+  <div id="cartModal" class="cart-modal">
+    <div class="cart-modal-header">
+      <span>Keranjang Belanja</span>
+      <button onclick="closeCartModal()" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">×</button>
+    </div>
+    <div class="cart-modal-content" id="cartModalContent">
+      <!-- Daftar item akan dimuat di sini -->
+    </div>
+    <div class="cart-modal-footer">
+      <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
+      <button onclick="confirmCheckout()" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">Checkout</button>
+    </div>
   </div>
-  <div class="cart-modal-content" id="cartModalContent">
-    <!-- Daftar item akan dimuat di sini -->
-  </div>
-  <div class="cart-modal-footer">
-    <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
-    <button onclick="confirmCheckout()" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">Checkout</button>
-  </div>
-</div>
 
   <div id="stiker" class="tab-content active">
     <div class="product-list" id="stiker-list"></div>
     <form class="add-form" onsubmit="addProduct(event, 'stiker')">
       <p>Nama Barang</p>
       <input type="text" name="name" placeholder="Nama Barang" required />
-      <input type="file" name="imageFile" accept="image/*" required onchange="previewImage(event, this)" />
+     <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
       <img class="preview" />
       <p>harga</p>
       <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
@@ -93,10 +94,6 @@
       <button type="submit">➕ Tambah Barang</button>
     </form>
   </div>
-
-
-
-
 
   <!-- Edit Modal -->
   <div id="editModal" class="modal">
@@ -116,24 +113,54 @@
     </div>
   </div>
 
-<!-- Category Modal -->
-<div id="categoryModal" class="modal">
+  <!-- Category Modal -->
+  <div id="categoryModal" class="modal">
+    <div class="modal-content">
+      <button class="close-modal" onclick="closeCategoryModal()">×</button>
+      <h3>Kelola Jenis Barang</h3>
+      <form onsubmit="addNewCategory(event)">
+        <input type="text" id="newCategoryName" placeholder="Nama Jenis Barang Baru" required />
+        <button type="submit">
+  <span class="icon">+</span> Tambah Jenis Barang
+</button>
+      </form>
+      <div class="category-list" id="categoryList"></div>
+    </div>
+  </div>
+
+<!-- Backup & Restore Modal -->
+<div id="backupModal" class="modal">
   <div class="modal-content">
-    <button class="close-modal" onclick="closeCategoryModal()">×</button>
-    <h3>Kelola Jenis Barang</h3>
-    
-    <form onsubmit="addNewCategory(event)">
-      <input type="text" id="newCategoryName" placeholder="Nama Jenis Barang Baru" required />
-      <button type="submit">➕ Tambah Jenis Barang</button>
-    </form>
-    
-    <div class="category-list" id="categoryList"></div>
+    <button class="close-modal" onclick="closeBackupModal()">×</button>
+    <h3>Backup & Restore Data</h3>
+    <div class="backup-options">
+      <div class="backup-option">
+        <h4>Export Data</h4>
+        <p>Simpan semua data ke file JSON</p>
+        <button onclick="exportData()" style="width: 100%; padding: 10px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+          📥 Export Semua Data
+        </button>
+      </div>
+      <div class="backup-option">
+        <h4>Import Data</h4>
+        <p>Muat data dari file JSON</p>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+        <button onclick="document.getElementById('importFile').click()" style="width: 100%; padding: 10px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+          📤 Pilih File Import
+        </button>
+      </div>
+      <div class="backup-option">
+        <h4>Reset Data</h4>
+        <p>Hapus semua data dan reset ke default</p>
+        <button onclick="resetAllData()" style="width: 100%; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+          🔄 Reset Semua Data
+        </button>
+      </div>
+    </div>
   </div>
 </div>
- 
 
-  &nbsp;
-<!-- Floating Cart Button -->
+  <!-- Floating Cart Button -->
   <button id="cartButton">
     🛒
     <span class="badge" id="cartBadge">0</span>
@@ -144,5 +171,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="script.js"></script>
+  
 </body>
 </html>
