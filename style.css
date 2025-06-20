@@ -360,16 +360,14 @@ input[type="file"]::file-selector-button {
       background: #27ae60;
     }
     /* Main Navbar (for categories) */
-.main-navbar {
-  background-color: #34495e;
-  padding: 14px 5px;
-  display: flex;
-  overflow-x: auto;
-  white-space: nowrap;
-  position: sticky;
-  top: 50px; /* Adjust based on menu bar height */
-  z-index: 100;
-  -webkit-overflow-scrolling: touch;
+    
+.navbar button.active-category {
+  background-color: #9b59b6 !important;
+  color: white !important;
+}
+
+.dark-mode .navbar button.active-category {
+  background-color: #7d3c98 !important;
 }
 
 .dark-mode .main-navbar {
