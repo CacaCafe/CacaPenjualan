@@ -42,19 +42,19 @@
 
   <!-- Menu Bar -->
   <div class="menu-bar">
-    <button class="menu-button" id="menuButton">☰</button>
+    <button class="menu-button" id="menuButton" onclick="toggleSidebar()">☰</button>
     <input type="text" id="searchInput" placeholder="Cari barang...">
     <button class="theme-toggle" id="themeToggle">🌙</button>
   </div>
 
-  <div class="navbar">
-    <button onclick="showTab('stiker')" class="active">Stiker</button>
-    <button onclick="showTab('poster')">Poster</button>
-    <button onclick="showTab('ganci')">Ganci</button>
-    <button onclick="showTab('standee')">Standee</button>
-    <button onclick="showTab('penggaris')">Penggaris</button>
-    <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
-  </div>
+<div class="navbar main-navbar"> <!-- Tambahkan class main-navbar -->
+  <button onclick="showTab('stiker')" class="active">Stiker</button>
+  <button onclick="showTab('poster')">Poster</button>
+  <button onclick="showTab('ganci')">Ganci</button>
+  <button onclick="showTab('standee')">Standee</button>
+  <button onclick="showTab('penggaris')">Penggaris</button>
+  <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
+</div>
 
   <div class="sales-section">
     <button id="salesTab" onclick="toggleSales()">📊 Lihat Data Penjualan</button>
@@ -106,6 +106,7 @@
       
       <label>Gambar Barang</label>
       <input type="file" name="imageFile" id="editImageFile" accept="image/*">
+      
       <img class="preview" id="editPreview">
       
       <label>Harga</label>
@@ -123,19 +124,19 @@
 </div>
 
   <!-- Category Modal -->
-  <div id="categoryModal" class="modal">
-    <div class="modal-content">
-      <button class="close-modal" onclick="closeCategoryModal()">×</button>
-      <h3>Kelola Jenis Barang</h3>
-      <form onsubmit="addNewCategory(event)">
-        <input type="text" id="newCategoryName" placeholder="Nama Jenis Barang Baru" required />
-        <button type="submit">
-  <span class="icon">+</span> Tambah Jenis Barang
-</button>
-      </form>
-      <div class="category-list" id="categoryList"></div>
-    </div>
+<div id="categoryModal" class="modal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeCategoryModal()">×</button>
+    <h3>Kelola Jenis Barang</h3>
+    <form onsubmit="addNewCategory(event)">
+      <input type="text" id="newCategoryName" placeholder="Nama Jenis Barang Baru" required />
+      <button type="submit">
+        <span class="icon">+</span> Tambah Jenis Barang
+      </button>
+    </form>
+    <div class="category-list" id="categoryList"></div>
   </div>
+</div>
 
 <!-- Backup & Restore Modal -->
 <div id="backupModal" class="modal">
