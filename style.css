@@ -288,11 +288,23 @@ input[type="file"]::file-selector-button {
     }
 
     .button-group {
-      display: flex;
-      justify-content: space-between;
+      display: none; /* Sembunyikan secara default */
+      justify-content: center;
+      gap: 5px;
       margin-top: 10px;
+      width: 100%;
     }
-    
+
+    .dark-mode .button-group {
+      background: rgba(30, 30, 30, 0.9);
+    }
+
+    .button-group .action-btn {
+      margin: 0;
+      width: 100%;
+      text-align: center;
+    }
+
     /* Navbar */
     .navbar {
       position: fixed;
@@ -794,6 +806,12 @@ input[type="file"]::file-selector-button {
       border: 2px solid #eee;
       background: #181818;
       margin: 4px 4px 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .product-img:hover {
+      transform: scale(1.05);
     }
     .dark-mode .product-img {
       border-color: #444;
@@ -821,17 +839,19 @@ input[type="file"]::file-selector-button {
     .quantity-controls {
       display: flex;
       align-items: center;
-      margin: 1px 4px;
+      margin: 10px 0;
+      width: 100%;
+      justify-content: center;
     }
     .quantity-controls button {
       background-color: #4CAF50;
       color: white;
       border: none;
-      width: 45px;
-      height: 45px;
+      width: 35px;
+      height: 35px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 29px;
+      font-size: 20px;
     }
     .dark-mode .quantity-controls button {
       background: #27ae60;
@@ -850,7 +870,7 @@ input[type="file"]::file-selector-button {
       background: #555;
     }
     .quantity-controls input {
-      width: 30px;
+      width: 40px;
       text-align: center;
       margin: 0 10px;
       padding: 5px;
@@ -865,13 +885,15 @@ input[type="file"]::file-selector-button {
 
     /* Action Buttons */
     .action-btn {
-      padding: 5px 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      margin: 4px;
-    }
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
     .btn-delete {
       background-color: #e74c3c;
     }
