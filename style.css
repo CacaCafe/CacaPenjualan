@@ -314,7 +314,7 @@ input[type="file"]::file-selector-button {
       display: none;
     }
     .navbar button {
-      background: none;
+      background: #eaeeeb;
       border: none;
       padding: 10px 15px;
       margin: 0 5px;
@@ -322,6 +322,7 @@ input[type="file"]::file-selector-button {
       border-radius: 4px;
       font-size: 14px;
       transition: background-color 0.3s;
+      border-color: #27ae60;
     }
     .dark-mode .navbar button {
       background: #222020;
@@ -418,7 +419,7 @@ input[type="file"]::file-selector-button {
   right: 0;
   background-color: #34495e;
   color: white;
-  padding: 20px 20px;
+  padding: 19px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -442,8 +443,8 @@ input[type="file"]::file-selector-button {
 
 #searchInput:focus {
   outline: none;
-  border-color: #f25ef3;
-  box-shadow: 0 0 5px rgba(242, 94, 243, 0.5);
+  border-color: #5ef390;
+  box-shadow: 0 0 5px rgba(113, 255, 201, 0.5);
 }
 
 .dark-mode #searchInput {
@@ -488,7 +489,7 @@ input[type="file"]::file-selector-button {
  .sales-section {
       padding: 5px;
       background: white;
-      margin: 5px;
+      margin: 1px;
       border-radius: 10px;
       box-shadow: 0 2px 1px rgba(0,0,0,0.1);
       margin-top: 10px; /* Ditambah untuk memberi jarak dari navbar */
@@ -509,7 +510,7 @@ input[type="file"]::file-selector-button {
       background: #2980b9;
       border: none;
       color: white;
-      border-radius: px;
+      border-radius: 1px;
       cursor: pointer;
       transition: background-color 0.3s;
       margin-bottom: 2px;
@@ -770,7 +771,6 @@ input[type="file"]::file-selector-button {
       align-items: center;
       position: relative;
       transition: transform 0.2s;
-      border-radius: 0px 0px 30px 0px;
       margin-top: 1px; /* Ngatur Margin top */
       color: #333;
     }
@@ -787,12 +787,13 @@ input[type="file"]::file-selector-button {
       border-bottom-left-radius: inherit;
     }
     .product-img {
-      width: 150px;
-      height: 150px;
+      width: 140px;
+      height: 140px;
       object-fit: cover;
       border-radius: 10px;
       border: 2px solid #eee;
       background: #181818;
+      margin: 4px 4px 4px;
     }
     .dark-mode .product-img {
       border-color: #444;
@@ -820,17 +821,17 @@ input[type="file"]::file-selector-button {
     .quantity-controls {
       display: flex;
       align-items: center;
-      margin: 10px 4px;
+      margin: 1px 4px;
     }
     .quantity-controls button {
       background-color: #4CAF50;
       color: white;
       border: none;
-      width: 30px;
-      height: 30px;
+      width: 45px;
+      height: 45px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 29px;
     }
     .dark-mode .quantity-controls button {
       background: #27ae60;
@@ -849,7 +850,7 @@ input[type="file"]::file-selector-button {
       background: #555;
     }
     .quantity-controls input {
-      width: 40px;
+      width: 30px;
       text-align: center;
       margin: 0 10px;
       padding: 5px;
