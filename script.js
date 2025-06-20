@@ -1,24 +1,28 @@
 function adjustContentMargin() {
-      const menuBarHeight = document.querySelector('.menu-bar').offsetHeight;
-      const navbarHeight = document.querySelector('.navbar').offsetHeight;
-      const totalHeight = menuBarHeight + navbarHeight;
-      
-      document.body.style.paddingTop = totalHeight + 'px';
-      if (typeof webView !== 'undefined') {
-    webView.getSettings().setAllowFileAccess(true);
-    // ... kode lainnya
-      }
-    }
+  const menuBarHeight = document.querySelector('.menu-bar').offsetHeight;
+  const navbarHeight = document.querySelector('.navbar').offsetHeight;
+  const totalHeight = menuBarHeight + navbarHeight;
+  
+  document.body.style.paddingTop = totalHeight + 'px';
+  
+  // Sesuaikan tinggi konten
+  const tabContents = document.querySelectorAll('.tab-content');
+  tabContents.forEach(tab => {
+    tab.style.height = `calc(100vh - ${totalHeight}px)`;
+    tab.style.overflowY = 'auto';
+  });
+}
+
 // Panggil saat load dan resize
 window.addEventListener('load', adjustContentMargin);
 window.addEventListener('resize', adjustContentMargin);
 
-
-  // Initialize
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
   loadFromDatabase();
   adjustContentMargin();
   
+  // Event listeners
   document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
   document.getElementById('menuButton').addEventListener('click', toggleSidebar);
   document.getElementById('cartButton').addEventListener('click', function() {
@@ -28,9 +32,15 @@ document.addEventListener('DOMContentLoaded', function() {
       showNotification('Keranjang kosong!');
     }
   });
+  
+  // Search functionality
+  document.getElementById('searchInput').addEventListener('input', function(event) {
+    const searchTerm = event.target.value.toLowerCase();
+    filterProducts(searchTerm);
+  });
 });
 
-    // Sidebar functions
+// Sidebar functions
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
@@ -54,30 +64,19 @@ function showSalesReport() {
 
 function showSettings() {
   alert("Fitur pengaturan akan ditambahkan di versi berikutnya");
-  // Ini bisa diganti dengan modal pengaturan nanti
 }
 
 function showBackupRestore() {
-  alert("Fitur backup & restore akan ditambahkan di versi berikutnya");
-  // Ini bisa diganti dengan modal backup/restore nanti
+  document.getElementById('backupModal').style.display = 'flex';
+}
+
+function closeBackupModal() {
+  document.getElementById('backupModal').style.display = 'none';
 }
 
 function showHelp() {
   alert("Fitur bantuan akan ditambahkan di versi berikutnya");
-  // Ini bisa diganti dengan modal bantuan nanti
 }
-
-// Initialize
-document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
-document.getElementById('menuButton').addEventListener('click', toggleSidebar);
-document.getElementById('cartButton').addEventListener('click', function() {
-  if (cart.length > 0) {
-    showCartModal();
-  } else {
-    alert('Keranjang kosong!');
-  }
-});
-
 
 // Fungsi untuk menampilkan modal keranjang
 function showCartModal() {
@@ -152,17 +151,13 @@ function removeCartItem(index) {
   });
 }
 
-
 // Fungsi untuk konfirmasi checkout
 function confirmCheckout() {
   closeCartModal();
-  checkout(); // Pastikan fungsi checkout() didefinisikan dengan benar
+  checkout();
 }
 
-
-
-
-    let currentSortColumn = null;
+let currentSortColumn = null;
 let sortDirection = 1; // 1 for ascending, -1 for descending
 
 function sortSalesTable(column) {
@@ -282,406 +277,407 @@ function renderSortedSalesTable(sortedSales) {
     }
   });
 }
-    // Nama database dan versi
-    const DB_NAME = 'penjualan_barang_db';
-    const DB_VERSION = 1;
+
+// Nama database dan versi
+const DB_NAME = 'penjualan_barang_db';
+const DB_VERSION = 1;
+
+// Nama object store
+const STORE_NAMES = {
+  PRODUCTS: 'products',
+  CART: 'cart',
+  SALES: 'sales',
+  CATEGORIES: 'categories'
+};
+
+// Variabel untuk database
+let db;
+
+// Data awal
+let data = {
+  stiker: [],
+  poster: [],
+  ganci: [],
+  standee: [],
+  penggaris: []
+};
+
+let categories = ['stiker', 'poster', 'ganci', 'standee', 'penggaris'];
+let cart = [];
+let sales = [];
+
+// Toggle dark mode
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  const isDarkMode = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDarkMode);
+  document.getElementById('themeToggle').textContent = isDarkMode ? '☀' : '🌙';
+}
+
+// Check for saved dark mode preference
+if (localStorage.getItem('darkMode') === 'true') {
+  document.body.classList.add('dark-mode');
+  document.getElementById('themeToggle').textContent = '☀️';
+}
+
+// Buka koneksi ke IndexedDB
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     
-    // Nama object store
-    const STORE_NAMES = {
-      PRODUCTS: 'products',
-      CART: 'cart',
-      SALES: 'sales',
-      CATEGORIES: 'categories'
+    request.onerror = (event) => {
+      console.error("Gagal membuka database:", event.target.error);
+      reject(event.target.error);
     };
-
-    // Variabel untuk database
-    let db;
     
-    // Data awal
-    let data = {
-      stiker: [],
-      poster: [],
-      ganci: [],
-      standee: [],
-      penggaris: []
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      resolve(db);
     };
-
-    let categories = ['stiker', 'poster', 'ganci', 'standee', 'penggaris'];
-    let cart = [];
-    let sales = [];
-
-    // Toggle dark mode
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-      const isDarkMode = document.body.classList.contains('dark-mode');
-      localStorage.setItem('darkMode', isDarkMode);
-      document.getElementById('themeToggle').textContent = isDarkMode ? '☀' : '🌙';
-    }
-
-    // Check for saved dark mode preference
-    if (localStorage.getItem('darkMode') === 'true') {
-      document.body.classList.add('dark-mode');
-      document.getElementById('themeToggle').textContent = '☀️';
-    }
-
-    // Buka koneksi ke IndexedDB
-    function openDatabase() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        
-        request.onerror = (event) => {
-          console.error("Gagal membuka database:", event.target.error);
-          reject(event.target.error);
-        };
-        
-        request.onsuccess = (event) => {
-          db = event.target.result;
-          resolve(db);
-        };
-        
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          
-          // Buat object store untuk produk
-          if (!db.objectStoreNames.contains(STORE_NAMES.PRODUCTS)) {
-            db.createObjectStore(STORE_NAMES.PRODUCTS, { keyPath: ['category', 'name'] });
-          }
-          
-          // Buat object store untuk keranjang
-          if (!db.objectStoreNames.contains(STORE_NAMES.CART)) {
-            db.createObjectStore(STORE_NAMES.CART, { keyPath: 'name' });
-          }
-          
-          // Buat object store untuk penjualan
-          if (!db.objectStoreNames.contains(STORE_NAMES.SALES)) {
-            db.createObjectStore(STORE_NAMES.SALES, { keyPath: 'time' });
-          }
-          
-          // Buat object store untuk kategori
-          if (!db.objectStoreNames.contains(STORE_NAMES.CATEGORIES)) {
-            db.createObjectStore(STORE_NAMES.CATEGORIES, { keyPath: 'name' });
-          }
-        };
-      });
-    }
-
-    // Fungsi untuk menyimpan data ke IndexedDB
-    function saveToIndexedDB(storeName, data) {
-      return new Promise((resolve, reject) => {
-        if (!db) {
-          reject(new Error("Database belum diinisialisasi"));
-          return;
-        }
-        
-        const transaction = db.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
-        
-        // Clear existing data
-        const clearRequest = store.clear();
-        
-        clearRequest.onsuccess = () => {
-          // Add new data
-          if (Array.isArray(data)) {
-            // Untuk array data
-            let completed = 0;
-            let hasError = false;
-            
-            if (data.length === 0) {
-              resolve();
-              return;
-            }
-            
-            data.forEach(item => {
-              const request = store.add(item);
-              
-              request.onerror = (event) => {
-                if (!hasError) {
-                  hasError = true;
-                  reject(event.target.error);
-                }
-              };
-              
-              request.onsuccess = () => {
-                completed++;
-                if (completed === data.length && !hasError) {
-                  resolve();
-                }
-              };
-            });
-          } else if (typeof data === 'object') {
-            // Untuk object data (products)
-            let completed = 0;
-            let hasError = false;
-            const allItems = [];
-            
-            // Convert products object to array
-            Object.keys(data).forEach(category => {
-              data[category].forEach(product => {
-                allItems.push(product);
-              });
-            });
-            
-            if (allItems.length === 0) {
-              resolve();
-              return;
-            }
-            
-            allItems.forEach(item => {
-              const request = store.add(item);
-              
-              request.onerror = (event) => {
-                if (!hasError) {
-                  hasError = true;
-                  reject(event.target.error);
-                }
-              };
-              
-              request.onsuccess = () => {
-                completed++;
-                if (completed === allItems.length && !hasError) {
-                  resolve();
-                }
-              };
-            });
-          }
-        };
-        
-        clearRequest.onerror = (event) => {
-          reject(event.target.error);
-        };
-      });
-    }
-
-    // Fungsi untuk memuat data dari IndexedDB
-    function loadFromIndexedDB(storeName) {
-      return new Promise((resolve, reject) => {
-        if (!db) {
-          reject(new Error("Database belum diinisialisasi"));
-          return;
-        }
-        
-        const transaction = db.transaction([storeName], 'readonly');
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
-        
-        request.onerror = (event) => {
-          reject(event.target.error);
-        };
-        
-        request.onsuccess = (event) => {
-          resolve(event.target.result);
-        };
-      });
-    }
-
-    // Tampilkan notifikasi
-      function showNotification(message) {
-      const notification = document.getElementById('notification');
-      notification.textContent = message;
-      notification.style.display = 'flex';
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
       
-      // Reset animasi
-      notification.style.animation = 'none';
-      void notification.offsetWidth; // Trigger reflow
-      notification.style.animation = 'fadeIn 0.3s, fadeOut 0.5s 2.5s forwards';
-    }
-
-    // Load data dari IndexedDB
-    async function loadFromDatabase() {
-      try {
-        await openDatabase();
-        
-        // Load categories
-        const loadedCategories = await loadFromIndexedDB(STORE_NAMES.CATEGORIES);
-        if (loadedCategories && loadedCategories.length > 0) {
-          categories = loadedCategories.map(c => c.name);
-          updateNavbarCategories();
-        }
-        
-        // Load products
-        const loadedProducts = await loadFromIndexedDB(STORE_NAMES.PRODUCTS);
-        if (loadedProducts && loadedProducts.length > 0) {
-          // Reset data object
-          data = {};
-          
-          // Group products by category
-          loadedProducts.forEach(product => {
-            if (!data[product.category]) {
-              data[product.category] = [];
-            }
-            data[product.category].push(product);
-          });
-        } else {
-          initializeSampleData();
-        }
-        
-        // Load cart
-        const loadedCart = await loadFromIndexedDB(STORE_NAMES.CART);
-        if (loadedCart) {
-          cart = loadedCart;
-        }
-        
-        // Load sales
-        const loadedSales = await loadFromIndexedDB(STORE_NAMES.SALES);
-        if (loadedSales) {
-          sales = loadedSales;
-        }
-        
-        renderProducts();
-        updateCartBadge();
-        showTab('stiker');
-      } catch (error) {
-        console.error("Gagal memuat data dari database:", error);
-        initializeSampleData();
+      // Buat object store untuk produk
+      if (!db.objectStoreNames.contains(STORE_NAMES.PRODUCTS)) {
+        db.createObjectStore(STORE_NAMES.PRODUCTS, { keyPath: ['category', 'name'] });
       }
-    }
-
-    // Simpan semua data ke IndexedDB
-    async function saveAllData() {
-      try {
-        // Save products
-        await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-        
-        // Save cart
-        await saveToIndexedDB(STORE_NAMES.CART, cart);
-        
-        // Save sales
-        await saveToIndexedDB(STORE_NAMES.SALES, sales);
-        
-        // Save categories
-        const categoriesToSave = categories.map(name => ({ name }));
-        await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
-      } catch (error) {
-        console.error("Gagal menyimpan data ke database:", error);
+      
+      // Buat object store untuk keranjang
+      if (!db.objectStoreNames.contains(STORE_NAMES.CART)) {
+        db.createObjectStore(STORE_NAMES.CART, { keyPath: 'name' });
       }
-    }
-
-    // Initialize dengan data contoh jika kosong
-    function initializeSampleData() {
-      const placeholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABdElEQVR4nO3VMUoDQRCF4U9qDYZoDOKDrCS3TGUoATQX0AuRPIAiSBUOw3cZt30VLcqSCZMw/fD8JJGfzXzftvdfS+9/AgAAAAAAAAAAAAAAAAAAAPwNLDJoTNp4GMHDsYPuYB7rwCzHch0rPfDJ17K3BR/PvA0v0qk+yF4O8Qhva2TNeHsl6oLsG1cCl8icfD3Phdz69dz29l9dP3/xNx98MWd66Z8/XBzZ8Y2OYw3zoDu6OuEXAuA/hI/VJmfF0fvT+A12k5NVu2P82cuAVfUybDrtd1WHBe+Vc5Nozj3upON/dfZ9jnp6sB70J+XEGWZP5ELGLoVcNlr4vcFD6uj+Nglw5tNsHSf89qjXQH83IrAqfDwDsuDj++mvVbgHPh2gPc4w2Ht7q4QvH8xDqWJv0IjP+F1cOW+S46z1dCyBwj8Bi+NFfFQAAAAAAAAAAAAAAAAD8BvgB7Yq3e6DdOpLwAAAABJRU5ErkJggg==';
       
-      categories.forEach(category => {
-        if (!data[category]) data[category] = [];
-        
-        if (data[category].length === 0) {
-          data[category].push({ 
-            name: `${capitalizeFirstLetter(category)} A`, 
-            image: placeholder, 
-            price: category === 'stiker' ? 2000 : 
-                  category === 'poster' ? 10000 : 
-                  category === 'ganci' ? 5000 : 
-                  category === 'standee' ? 15000 : 3000,
-            stock: 10,
-            minStock: 5,
-            soldOut: false, 
-            category 
-          });
-        }
-      });
+      // Buat object store untuk penjualan
+      if (!db.objectStoreNames.contains(STORE_NAMES.SALES)) {
+        db.createObjectStore(STORE_NAMES.SALES, { keyPath: 'time' });
+      }
       
-      saveAllData();
-    }
+      // Buat object store untuk kategori
+      if (!db.objectStoreNames.contains(STORE_NAMES.CATEGORIES)) {
+        db.createObjectStore(STORE_NAMES.CATEGORIES, { keyPath: 'name' });
+      }
+    };
+  });
+}
 
-    function capitalizeFirstLetter(string) {
-      return string.charAt(0).toUpperCase() + string.slice(1);
+// Fungsi untuk menyimpan data ke IndexedDB
+function saveToIndexedDB(storeName, data) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error("Database belum diinisialisasi"));
+      return;
     }
-
-        // Pada fungsi showTab(), ubah selektor untuk navbar yang benar
-    function showTab(tabName) {
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.main-navbar button').forEach(btn => {
-        if (!btn.classList.contains('manage-category')) {
-          btn.classList.remove('active');
-        }
-      });
-      document.getElementById(tabName).classList.add('active');
-      document.querySelector(`.main-navbar button[onclick="showTab('${tabName}')"]`).classList.add('active');
-    }
-
-    function formatRupiah(number) {
-      return new Intl.NumberFormat('id-ID', { style: 'decimal' }).format(number);
-    }
-
-    function renderProducts() {
-      categories.forEach(category => {
-        const container = document.getElementById(`${category}-list`);
-        if (!container) return;
+    
+    const transaction = db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
+    
+    // Clear existing data
+    const clearRequest = store.clear();
+    
+    clearRequest.onsuccess = () => {
+      // Add new data
+      if (Array.isArray(data)) {
+        // Untuk array data
+        let completed = 0;
+        let hasError = false;
         
-        container.innerHTML = '';
-        
-        if (!data[category] || data[category].length === 0) {
-          container.innerHTML = '<div class="empty-state">Belum ada produk</div>';
+        if (data.length === 0) {
+          resolve();
           return;
         }
         
-        data[category].forEach((item, index) => {
-          const card = document.createElement('div');
-          card.className = 'product-card';
+        data.forEach(item => {
+          const request = store.add(item);
           
-          // Check stock status
-          const isLowStock = item.stock <= item.minStock;
-          const isOutOfStock = item.stock <= 0;
+          request.onerror = (event) => {
+            if (!hasError) {
+              hasError = true;
+              reject(event.target.error);
+            }
+          };
           
-          card.innerHTML = `
-            <strong>${item.name}</strong>
-            <img src="${item.image}" class="product-img" alt="${item.name}" loading="lazy">
-            
-            <strong>Rp${formatRupiah(item.price)}</strong>
-            <div class="stock-info">
-              <span class="stock-label">Stok:</span>
-              <span class="stock-value ${isLowStock ? 'low-stock' : ''}">${item.stock}</span>
-            </div>
-            <div class="stock-info">
-              <span class="stock-label">Min. Stok:</span>
-              <span class="stock-value">${item.minStock}</span>
-            </div>
-            <div class="quantity-controls">
-              <button onclick="decreaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>−</button>
-              <input type="text" value="0" id="qty-${category}-${index}" readonly />
-              <button onclick="increaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>+</button>
-            </div>
-            <div class="button-group">
-              <button class="action-btn btn-edit" onclick="editProduct('${category}', ${index})">✏️ </button>
-              <button class="action-btn btn-delete" onclick="deleteProduct('${category}', ${index})">🗑️ </button>
-              <button class="action-btn btn-soldout ${item.soldOut ? 'active' : ''}" onclick="toggleSoldOut('${category}', ${index})">
-                ${item.soldOut ? '🛑 Sold Out' : '⚠️ '}
-              </button>
-            </div>
-          `;
-          
-          // Set nilai quantity dari cart jika ada
-          const cartItem = cart.find(c => c.name === item.name);
-          if (cartItem) {
-            card.querySelector(`#qty-${category}-${index}`).value = cartItem.qty;
-          }
-          
-          container.appendChild(card);
+          request.onsuccess = () => {
+            completed++;
+            if (completed === data.length && !hasError) {
+              resolve();
+            }
+          };
         });
+      } else if (typeof data === 'object') {
+        // Untuk object data (products)
+        let completed = 0;
+        let hasError = false;
+        const allItems = [];
+        
+        // Convert products object to array
+        Object.keys(data).forEach(category => {
+          data[category].forEach(product => {
+            allItems.push(product);
+          });
+        });
+        
+        if (allItems.length === 0) {
+          resolve();
+          return;
+        }
+        
+        allItems.forEach(item => {
+          const request = store.add(item);
+          
+          request.onerror = (event) => {
+            if (!hasError) {
+              hasError = true;
+              reject(event.target.error);
+            }
+          };
+          
+          request.onsuccess = () => {
+            completed++;
+            if (completed === allItems.length && !hasError) {
+              resolve();
+            }
+          };
+        });
+      }
+    };
+    
+    clearRequest.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
+// Fungsi untuk memuat data dari IndexedDB
+function loadFromIndexedDB(storeName) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error("Database belum diinisialisasi"));
+      return;
+    }
+    
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
+    
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+    
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+  });
+}
+
+// Tampilkan notifikasi
+function showNotification(message) {
+  const notification = document.getElementById('notification');
+  notification.textContent = message;
+  notification.style.display = 'flex';
+  
+  // Reset animasi
+  notification.style.animation = 'none';
+  void notification.offsetWidth; // Trigger reflow
+  notification.style.animation = 'fadeIn 0.3s, fadeOut 0.5s 2.5s forwards';
+}
+
+// Load data dari IndexedDB
+async function loadFromDatabase() {
+  try {
+    await openDatabase();
+    
+    // Load categories
+    const loadedCategories = await loadFromIndexedDB(STORE_NAMES.CATEGORIES);
+    if (loadedCategories && loadedCategories.length > 0) {
+      categories = loadedCategories.map(c => c.name);
+      updateNavbarCategories();
+    }
+    
+    // Load products
+    const loadedProducts = await loadFromIndexedDB(STORE_NAMES.PRODUCTS);
+    if (loadedProducts && loadedProducts.length > 0) {
+      // Reset data object
+      data = {};
+      
+      // Group products by category
+      loadedProducts.forEach(product => {
+        if (!data[product.category]) {
+          data[product.category] = [];
+        }
+        data[product.category].push(product);
+      });
+    } else {
+      initializeSampleData();
+    }
+    
+    // Load cart
+    const loadedCart = await loadFromIndexedDB(STORE_NAMES.CART);
+    if (loadedCart) {
+      cart = loadedCart;
+    }
+    
+    // Load sales
+    const loadedSales = await loadFromIndexedDB(STORE_NAMES.SALES);
+    if (loadedSales) {
+      sales = loadedSales;
+    }
+    
+    renderProducts();
+    updateCartBadge();
+    showTab('stiker');
+  } catch (error) {
+    console.error("Gagal memuat data dari database:", error);
+    initializeSampleData();
+  }
+}
+
+// Simpan semua data ke IndexedDB
+async function saveAllData() {
+  try {
+    // Save products
+    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+    
+    // Save cart
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    
+    // Save sales
+    await saveToIndexedDB(STORE_NAMES.SALES, sales);
+    
+    // Save categories
+    const categoriesToSave = categories.map(name => ({ name }));
+    await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
+  } catch (error) {
+    console.error("Gagal menyimpan data ke database:", error);
+  }
+}
+
+// Initialize dengan data contoh jika kosong
+function initializeSampleData() {
+  const placeholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABdElEQVR4nO3VMUoDQRCF4U9qDYZoDOKDrCS3TGUoATQX0AuRPIAiSBUOw3cZt30VLcqSCZMw/fD8JJGfzXzftvdfS+9/AgAAAAAAAAAAAAAAAAAAAPwNLDJoTNp4GMHDsYPuYB7rwCzHch0rPfDJ17K3BR/PvA0v0qk+yF4O8Qhva2TNeHsl6oLsG1cCl8icfD3Phdz69dz29l9dP3/xNx98MWd66Z8/XBzZ8Y2OYw3zoDu6OuEXAuA/hI/VJmfF0fvT+A12k5NVu2P82cuAVfUybDrtd1WHBe+Vc5Nozj3upON/dfZ9jnp6sB70J+XEGWZP5ELGLoVcNlr4vcFD6uj+Nglw5tNsHSf89qjXQH83IrAqfDwDsuDj++mvVbgHPh2gPc4w2Ht7q4QvH8xDqWJv0IjP+F1cOW+S46z1dCyBwj8Bi+NFfFQAAAAAAAAAAAAAAAAD8BvgB7Yq3e6DdOpLwAAAABJRU5ErkJggg==';
+  
+  categories.forEach(category => {
+    if (!data[category]) data[category] = [];
+    
+    if (data[category].length === 0) {
+      data[category].push({ 
+        name: `${capitalizeFirstLetter(category)} A`, 
+        image: placeholder, 
+        price: category === 'stiker' ? 2000 : 
+              category === 'poster' ? 10000 : 
+              category === 'ganci' ? 5000 : 
+              category === 'standee' ? 15000 : 3000,
+        stock: 10,
+        minStock: 5,
+        soldOut: false, 
+        category 
       });
     }
+  });
+  
+  saveAllData();
+}
 
-    function increaseQuantity(category, index) {
-      const item = data[category][index];
-      if (item.soldOut || item.stock <= 0) return;
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+// Pada fungsi showTab(), ubah selektor untuk navbar yang benar
+function showTab(tabName) {
+  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.main-navbar button').forEach(btn => {
+    if (!btn.classList.contains('manage-category')) {
+      btn.classList.remove('active');
+    }
+  });
+  document.getElementById(tabName).classList.add('active');
+  document.querySelector(`.main-navbar button[onclick="showTab('${tabName}')"]`).classList.add('active');
+}
+
+function formatRupiah(number) {
+  return new Intl.NumberFormat('id-ID', { style: 'decimal' }).format(number);
+}
+
+function renderProducts() {
+  categories.forEach(category => {
+    const container = document.getElementById(`${category}-list`);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!data[category] || data[category].length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada produk</div>';
+      return;
+    }
+    
+    data[category].forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'product-card';
       
-      const qtyInput = document.getElementById(`qty-${category}-${index}`);
-      const currentQty = parseInt(qtyInput.value);
+      // Check stock status
+      const isLowStock = item.stock <= item.minStock;
+      const isOutOfStock = item.stock <= 0;
       
-      // Check if we have enough stock
-      if (currentQty >= item.stock) {
-        showNotification(`Stok tidak cukup! Hanya tersedia ${item.stock} item.`);
-        return;
+      card.innerHTML = `
+        <strong>${item.name}</strong>
+        <img src="${item.image}" class="product-img" alt="${item.name}" loading="lazy">
+        
+        <strong>Rp${formatRupiah(item.price)}</strong>
+        <div class="stock-info">
+          <span class="stock-label">Stok:</span>
+          <span class="stock-value ${isLowStock ? 'low-stock' : ''}">${item.stock}</span>
+        </div>
+        <div class="stock-info">
+          <span class="stock-label">Min. Stok:</span>
+          <span class="stock-value">${item.minStock}</span>
+        </div>
+        <div class="quantity-controls">
+          <button onclick="decreaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>−</button>
+          <input type="text" value="0" id="qty-${category}-${index}" readonly />
+          <button onclick="increaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>+</button>
+        </div>
+        <div class="button-group">
+          <button class="action-btn btn-edit" onclick="editProduct('${category}', ${index})">✏️ </button>
+          <button class="action-btn btn-delete" onclick="deleteProduct('${category}', ${index})">🗑️ </button>
+          <button class="action-btn btn-soldout ${item.soldOut ? 'active' : ''}" onclick="toggleSoldOut('${category}', ${index})">
+            ${item.soldOut ? '🛑 Sold Out' : '⚠️ '}
+          </button>
+        </div>
+      `;
+      
+      // Set nilai quantity dari cart jika ada
+      const cartItem = cart.find(c => c.name === item.name);
+      if (cartItem) {
+        card.querySelector(`#qty-${category}-${index}`).value = cartItem.qty;
       }
       
-      qtyInput.value = currentQty + 1;
-      updateCart(category, index, parseInt(qtyInput.value));
-      
-      // Tampilkan notifikasi
-      const productName = data[category][index].name;
-      showNotification(`Ditambahkan: ${productName} (${qtyInput.value}x)`);
-    }
+      container.appendChild(card);
+    });
+  });
+}
 
-   function decreaseQuantity(category, index) {
+function increaseQuantity(category, index) {
+  const item = data[category][index];
+  if (item.soldOut || item.stock <= 0) return;
+  
+  const qtyInput = document.getElementById(`qty-${category}-${index}`);
+  const currentQty = parseInt(qtyInput.value);
+  
+  // Check if we have enough stock
+  if (currentQty >= item.stock) {
+    showNotification(`Stok tidak cukup! Hanya tersedia ${item.stock} item.`);
+    return;
+  }
+  
+  qtyInput.value = currentQty + 1;
+  updateCart(category, index, parseInt(qtyInput.value));
+  
+  // Tampilkan notifikasi
+  const productName = data[category][index].name;
+  showNotification(`Ditambahkan: ${productName} (${qtyInput.value}x)`);
+}
+
+function decreaseQuantity(category, index) {
   const qtyInput = document.getElementById(`qty-${category}-${index}`);
   const currentValue = parseInt(qtyInput.value);
   
@@ -695,7 +691,7 @@ function renderSortedSalesTable(sortedSales) {
   }
 }
 
-    async function updateCart(category, index, qty) {
+async function updateCart(category, index, qty) {
   const product = data[category][index];
   const cartItem = cart.find(c => c.name === product.name);
   
@@ -717,203 +713,204 @@ function renderSortedSalesTable(sortedSales) {
     renderCartModalContent();
   }
 }
-    // Update cart badge
-    function updateCartBadge() {
-      const cartBadge = document.getElementById('cartBadge');
-      const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
-      cartBadge.textContent = itemCount;
-    }
 
-    async function checkout() {
-      if (cart.length === 0) {
-        alert('Keranjang kosong!');
-        return;
-      }
-      
-      // Check stock availability before checkout
-      for (const item of cart) {
-        const product = data[item.category]?.find(p => p.name === item.name);
-        if (!product || product.stock < item.qty) {
-          alert(`Stok tidak cukup untuk ${item.name}! Stok tersedia: ${product?.stock || 0}`);
-          return;
-        }
-      }
-      
-      const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
-      const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-      
-      if (confirm(`Beli ${itemCount} item dengan total Rp${formatRupiah(grandTotal)}?`)) {
-        const now = new Date().toLocaleString('id-ID');
-        
-        // Update stock for each item
-        cart.forEach(item => {
-          const product = data[item.category].find(p => p.name === item.name);
-          if (product) {
-            product.stock -= item.qty;
-          }
-        });
-        
-        sales.push({ 
-          time: now, 
-          items: JSON.parse(JSON.stringify(cart)),
-          total: grandTotal
-        });
-        
-        // Reset quantities in UI and cart
-        cart.forEach(item => {
-          const idx = data[item.category]?.findIndex(p => p.name === item.name) ?? -1;
-          if (idx >= 0) {
-            const qtyInput = document.getElementById(`qty-${item.category}-${idx}`);
-            if (qtyInput) qtyInput.value = 0;
-          }
-        });
-        
-        cart.length = 0;
-        await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-        await saveToIndexedDB(STORE_NAMES.CART, cart);
-        await saveToIndexedDB(STORE_NAMES.SALES, sales);
-        
-        updateCartBadge();
-        renderProducts();
-        
-        if (document.getElementById('salesData').style.display === 'block') {
-          renderSalesTable();
-        }
-        
-        showNotification(`Pembelian berhasil! ${itemCount} item (Rp${formatRupiah(grandTotal)})`);
-      }
-    }
+// Update cart badge
+function updateCartBadge() {
+  const cartBadge = document.getElementById('cartBadge');
+  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  cartBadge.textContent = itemCount;
+}
 
-    async function deleteProduct(category, index) {
-      const productName = data[category][index].name;
-      if (confirm(`Hapus barang "${productName}"?`)) {
-        // Remove from data
-        data[category].splice(index, 1);
-        
-        // Remove from cart if exists
-        for (let i = cart.length - 1; i >= 0; i--) {
-          if (cart[i].name === productName) {
-            cart.splice(i, 1);
-          }
-        }
-        
-        // Save changes
-        await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-        await saveToIndexedDB(STORE_NAMES.CART, cart);
-        
-        renderProducts();
-        updateCartBadge();
-      }
+async function checkout() {
+  if (cart.length === 0) {
+    alert('Keranjang kosong!');
+    return;
+  }
+  
+  // Check stock availability before checkout
+  for (const item of cart) {
+    const product = data[item.category]?.find(p => p.name === item.name);
+    if (!product || product.stock < item.qty) {
+      alert(`Stok tidak cukup untuk ${item.name}! Stok tersedia: ${product?.stock || 0}`);
+      return;
     }
-
-    async function toggleSoldOut(category, index) {
-      data[category][index].soldOut = !data[category][index].soldOut;
-      
-      // Reset quantity if sold out toggled on
-      if (data[category][index].soldOut) {
-        const qtyInput = document.getElementById(`qty-${category}-${index}`);
+  }
+  
+  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  
+  if (confirm(`Beli ${itemCount} item dengan total Rp${formatRupiah(grandTotal)}?`)) {
+    const now = new Date().toLocaleString('id-ID');
+    
+    // Update stock for each item
+    cart.forEach(item => {
+      const product = data[item.category].find(p => p.name === item.name);
+      if (product) {
+        product.stock -= item.qty;
+      }
+    });
+    
+    sales.push({ 
+      time: now, 
+      items: JSON.parse(JSON.stringify(cart)),
+      total: grandTotal
+    });
+    
+    // Reset quantities in UI and cart
+    cart.forEach(item => {
+      const idx = data[item.category]?.findIndex(p => p.name === item.name) ?? -1;
+      if (idx >= 0) {
+        const qtyInput = document.getElementById(`qty-${item.category}-${idx}`);
         if (qtyInput) qtyInput.value = 0;
-        
-        // Remove from cart
-        const cartIndex = cart.findIndex(c => c.name === data[category][index].name);
-        if (cartIndex >= 0) cart.splice(cartIndex, 1);
       }
-      
-      // Update button states for this product only
-      const card = document.querySelector(`#${category}-list .product-card:nth-child(${index + 1})`);
-      if (card) {
-        const buttons = card.querySelectorAll('.quantity-controls button');
-        buttons.forEach(button => {
-          button.disabled = data[category][index].soldOut || data[category][index].stock <= 0;
-        });
-      }
-      
-      // Save changes
-      await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-      if (data[category][index].soldOut) {
-        await saveToIndexedDB(STORE_NAMES.CART, cart);
-      }
-      
-      updateCartBadge();
+    });
+    
+    cart.length = 0;
+    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    await saveToIndexedDB(STORE_NAMES.SALES, sales);
+    
+    updateCartBadge();
+    renderProducts();
+    
+    if (document.getElementById('salesData').style.display === 'block') {
+      renderSalesTable();
     }
+    
+    showNotification(`Pembelian berhasil! ${itemCount} item (Rp${formatRupiah(grandTotal)})`);
+  }
+}
 
-    // Fungsi untuk membuka modal edit
-    function editProduct(category, index) {
-      const product = data[category][index];
-      document.getElementById('editCategory').value = category;
-      document.getElementById('editIndex').value = index;
-      document.getElementById('editName').value = product.name;
-      document.getElementById('editPrice').value = product.price;
-      document.getElementById('editStock').value = product.stock;
-      document.getElementById('editMinStock').value = product.minStock;
-      document.getElementById('editPreview').src = product.image;
-      document.getElementById('editPreview').style.display = 'block';
-      
-      // Reset file input
-      document.getElementById('editImageFile').value = '';
-      
-      // Tampilkan modal
-      document.getElementById('editModal').style.display = 'flex';
-    }
-
-    // Fungsi untuk menutup modal edit
-    function closeEditModal() {
-      document.getElementById('editModal').style.display = 'none';
-    }
-
-    // Fungsi untuk menyimpan perubahan produk
-    async function saveEditedProduct(event) {
-      event.preventDefault();
-      const form = event.target;
-      const category = form.category.value;
-      const index = parseInt(form.index.value);
-      const name = form.name.value.trim();
-      const price = parseInt(form.price.value);
-      const stock = parseInt(form.stock.value);
-      const minStock = parseInt(form.minStock.value);
-      const fileInput = form.imageFile;
-      
-      if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0) {
-        alert("Harap isi semua data dengan benar!");
-        return;
+async function deleteProduct(category, index) {
+  const productName = data[category][index].name;
+  if (confirm(`Hapus barang "${productName}"?`)) {
+    // Remove from data
+    data[category].splice(index, 1);
+    
+    // Remove from cart if exists
+    for (let i = cart.length - 1; i >= 0; i--) {
+      if (cart[i].name === productName) {
+        cart.splice(i, 1);
       }
-      
-      // Update data produk
-      data[category][index].name = name;
-      data[category][index].price = price;
-      data[category][index].stock = stock;
-      data[category][index].minStock = minStock;
-      
-      // Jika ada gambar baru, update gambar
-      if (fileInput.files && fileInput.files[0]) {
-        try {
-          const compressedImage = await compressImage(fileInput.files[0]);
-          data[category][index].image = compressedImage;
-          
-          // Update gambar di cart jika ada
-          const cartItem = cart.find(c => c.name === name);
-          if (cartItem) {
-            cartItem.image = compressedImage;
-          }
-        } catch (error) {
-          console.error("Gagal mengkompres gambar:", error);
-          alert("Gagal mengkompres gambar. Perubahan lain tetap disimpan.");
-        }
-      }
-      
-      // Save changes
-      await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-      if (fileInput.files && fileInput.files[0]) {
-        await saveToIndexedDB(STORE_NAMES.CART, cart);
-      }
-      
-      renderProducts();
-      updateCartBadge();
-      closeEditModal();
     }
+    
+    // Save changes
+    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    
+    renderProducts();
+    updateCartBadge();
+  }
+}
 
-    // Fungsi untuk mengkompres gambar
-    async function compressImage(file, maxSizeKB = 90) {
+async function toggleSoldOut(category, index) {
+  data[category][index].soldOut = !data[category][index].soldOut;
+  
+  // Reset quantity if sold out toggled on
+  if (data[category][index].soldOut) {
+    const qtyInput = document.getElementById(`qty-${category}-${index}`);
+    if (qtyInput) qtyInput.value = 0;
+    
+    // Remove from cart
+    const cartIndex = cart.findIndex(c => c.name === data[category][index].name);
+    if (cartIndex >= 0) cart.splice(cartIndex, 1);
+  }
+  
+  // Update button states for this product only
+  const card = document.querySelector(`#${category}-list .product-card:nth-child(${index + 1})`);
+  if (card) {
+    const buttons = card.querySelectorAll('.quantity-controls button');
+    buttons.forEach(button => {
+      button.disabled = data[category][index].soldOut || data[category][index].stock <= 0;
+    });
+  }
+  
+  // Save changes
+  await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+  if (data[category][index].soldOut) {
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+  }
+  
+  updateCartBadge();
+}
+
+// Fungsi untuk membuka modal edit
+function editProduct(category, index) {
+  const product = data[category][index];
+  document.getElementById('editCategory').value = category;
+  document.getElementById('editIndex').value = index;
+  document.getElementById('editName').value = product.name;
+  document.getElementById('editPrice').value = product.price;
+  document.getElementById('editStock').value = product.stock;
+  document.getElementById('editMinStock').value = product.minStock;
+  document.getElementById('editPreview').src = product.image;
+  document.getElementById('editPreview').style.display = 'block';
+  
+  // Reset file input
+  document.getElementById('editImageFile').value = '';
+  
+  // Tampilkan modal
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+// Fungsi untuk menutup modal edit
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+// Fungsi untuk menyimpan perubahan produk
+async function saveEditedProduct(event) {
+  event.preventDefault();
+  const form = event.target;
+  const category = form.category.value;
+  const index = parseInt(form.index.value);
+  const name = form.name.value.trim();
+  const price = parseInt(form.price.value);
+  const stock = parseInt(form.stock.value);
+  const minStock = parseInt(form.minStock.value);
+  const fileInput = form.imageFile;
+  
+  if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0) {
+    alert("Harap isi semua data dengan benar!");
+    return;
+  }
+  
+  // Update data produk
+  data[category][index].name = name;
+  data[category][index].price = price;
+  data[category][index].stock = stock;
+  data[category][index].minStock = minStock;
+  
+  // Jika ada gambar baru, update gambar
+  if (fileInput.files && fileInput.files[0]) {
+    try {
+      const compressedImage = await compressImage(fileInput.files[0]);
+      data[category][index].image = compressedImage;
+      
+      // Update gambar di cart jika ada
+      const cartItem = cart.find(c => c.name === name);
+      if (cartItem) {
+        cartItem.image = compressedImage;
+      }
+    } catch (error) {
+      console.error("Gagal mengkompres gambar:", error);
+      alert("Gagal mengkompres gambar. Perubahan lain tetap disimpan.");
+    }
+  }
+  
+  // Save changes
+  await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+  if (fileInput.files && fileInput.files[0]) {
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+  }
+  
+  renderProducts();
+  updateCartBadge();
+  closeEditModal();
+}
+
+// Fungsi untuk mengkompres gambar
+async function compressImage(file, maxSizeKB = 50) { // Ubah maxSize menjadi 50KB
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -925,39 +922,57 @@ function renderSortedSalesTable(sortedSales) {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
+          // Hitung dimensi baru dengan rasio aspek
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 800; // Batasi dimensi maksimum
+          
+          if (width > height) {
+            if (width > maxDimension) {
+              height *= maxDimension / width;
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width *= maxDimension / height;
+              height = maxDimension;
+            }
+          }
+          
           // Handle orientation
           if (orientation > 4 && orientation < 9) {
-            canvas.width = img.height;
-            canvas.height = img.width;
+            canvas.width = height;
+            canvas.height = width;
           } else {
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = width;
+            canvas.height = height;
           }
           
           // Apply orientation transformations
           switch (orientation) {
-            case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
-            case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
-            case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break;
+            case 2: ctx.transform(-1, 0, 0, 1, width, 0); break;
+            case 3: ctx.transform(-1, 0, 0, -1, width, height); break;
+            case 4: ctx.transform(1, 0, 0, -1, 0, height); break;
             case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
-            case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break;
-            case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break;
-            case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break;
+            case 6: ctx.transform(0, 1, -1, 0, height, 0); break;
+            case 7: ctx.transform(0, -1, -1, 0, height, width); break;
+            case 8: ctx.transform(0, -1, 1, 0, 0, width); break;
             default: ctx.transform(1, 0, 0, 1, 0, 0);
           }
           
-          ctx.drawImage(img, 0, 0, img.width, img.height);
+          ctx.drawImage(img, 0, 0, width, height);
           
-          let quality = 0.9;
+          let quality = 0.7; // Mulai dengan kualitas lebih rendah
           let compressedDataUrl;
           
-          for (let i = 0; i < 10; i++) {
+          // Loop untuk menemukan kualitas terbaik di bawah 50KB
+          for (let i = 0; i < 5; i++) {
             compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
             const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
             
             if (sizeKB <= maxSizeKB) break;
             
-            quality -= 0.1;
+            quality -= 0.15; // Kurangi kualitas lebih agresif
             if (quality < 0.1) quality = 0.1;
           }
           
@@ -969,55 +984,54 @@ function renderSortedSalesTable(sortedSales) {
     reader.readAsDataURL(file);
   });
 }
+async function addProduct(event, category) {
+  event.preventDefault();
+  const form = event.target;
+  const name = form.name.value.trim();
+  const price = parseInt(form.price.value);
+  const stock = parseInt(form.stock.value);
+  const minStock = parseInt(form.minStock.value);
+  const fileInput = form.imageFile;
+  
+  if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0 || !fileInput.files[0]) {
+    alert("Harap isi semua data dengan benar dan upload gambar!");
+    return;
+  }
+  
+  try {
+    // Kompres gambar sebelum menyimpan
+    const compressedImage = await compressImage(fileInput.files[0]);
+    
+    const newProduct = { 
+      name, 
+      image: compressedImage, 
+      price, 
+      stock,
+      minStock,
+      soldOut: false, 
+      category 
+    };
+    
+    // Tambahkan ke data
+    if (!data[category]) data[category] = [];
+    data[category].push(newProduct);
+    
+    // Simpan ke database
+    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+    
+    form.reset();
+    form.querySelector('img.preview').style.display = 'none';
+    form.stock.value = 10; // Reset to default
+    form.minStock.value = 5; // Reset to default
+    renderProducts();
+    showNotification(`Produk ditambahkan: ${name}`);
+  } catch (error) {
+    console.error("Gagal mengkompres gambar:", error);
+    alert("Gagal mengkompres gambar. Silakan coba lagi.");
+  }
+}
 
-    async function addProduct(event, category) {
-      event.preventDefault();
-      const form = event.target;
-      const name = form.name.value.trim();
-      const price = parseInt(form.price.value);
-      const stock = parseInt(form.stock.value);
-      const minStock = parseInt(form.minStock.value);
-      const fileInput = form.imageFile;
-      
-      if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0 || !fileInput.files[0]) {
-        alert("Harap isi semua data dengan benar dan upload gambar!");
-        return;
-      }
-      
-      try {
-        // Kompres gambar sebelum menyimpan
-        const compressedImage = await compressImage(fileInput.files[0]);
-        
-        const newProduct = { 
-          name, 
-          image: compressedImage, 
-          price, 
-          stock,
-          minStock,
-          soldOut: false, 
-          category 
-        };
-        
-        // Tambahkan ke data
-        if (!data[category]) data[category] = [];
-        data[category].push(newProduct);
-        
-        // Simpan ke database
-        await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-        
-        form.reset();
-        form.querySelector('img.preview').style.display = 'none';
-        form.stock.value = 10; // Reset to default
-        form.minStock.value = 5; // Reset to default
-        renderProducts();
-        showNotification(`Produk ditambahkan: ${name}`);
-      } catch (error) {
-        console.error("Gagal mengkompres gambar:", error);
-        alert("Gagal mengkompres gambar. Silakan coba lagi.");
-      }
-    }
-
-    // Ganti fungsi previewImage dengan ini
+// Ganti fungsi previewImage dengan ini
 function previewImage(event, input) {
   const preview = input.parentElement.querySelector('img.preview');
   if (input.files && input.files[0]) {
@@ -1082,217 +1096,167 @@ function fixImageOrientation(img, orientation) {
   ctx.drawImage(img, 0, 0);
   img.src = canvas.toDataURL();
 }
-function processImageFile(file, previewElement) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    previewElement.src = e.target.result;
-    previewElement.style.display = 'block';
-    
-    // Untuk mobile, pastikan gambar di-rotate dengan benar
-    if (window.orientation !== undefined) {
-      EXIF.getData(file, function() {
-        const orientation = EXIF.getTag(this, 'Orientation');
-        if (orientation) {
-          resetOrientation(previewElement, orientation);
-        }
-      });
-    }
-  };
-  reader.readAsDataURL(file);
-}
 
-  // Fungsi untuk mengoreksi orientasi gambar dari kamera
-function resetOrientation(img, orientation) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+function toggleSales() {
+  const salesDiv = document.getElementById('salesData');
+  const salesBtn = document.getElementById('salesTab');
   
-  // Sesuaikan ukuran canvas berdasarkan orientasi
-  if (orientation > 4 && orientation < 9) {
-    canvas.width = img.height;
-    canvas.height = img.width;
+  if (salesDiv.style.display === 'block') {
+    salesDiv.style.display = 'none';
+    salesBtn.textContent = '📊 Lihat Data Penjualan';
   } else {
-    canvas.width = img.width;
-    canvas.height = img.height;
+    renderSalesTable();
+    salesDiv.style.display = 'block';
+    salesBtn.textContent = '✖️ Tutup Data Penjualan';
   }
-  
-  // Transformasi berdasarkan orientasi
-  switch (orientation) {
-    case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
-    case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
-    case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break;
-    case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
-    case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break;
-    case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break;
-    case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break;
-    default: ctx.transform(1, 0, 0, 1, 0, 0);
-  }
-  
-  ctx.drawImage(img, 0, 0);
-  img.src = canvas.toDataURL();
 }
 
-    function toggleSales() {
-      const salesDiv = document.getElementById('salesData');
-      const salesBtn = document.getElementById('salesTab');
+function renderSalesTable() {
+  const salesDiv = document.getElementById('salesData');
+  
+  if (sales.length === 0) {
+    salesDiv.innerHTML = '<div class="empty-state">Belum ada data penjualan</div>';
+    return;
+  }
+  
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Gambar</th>
+          <th onclick="sortSalesTable('name')">Nama ▲▼</th>
+          <th onclick="sortSalesTable('qty')">Qty ▲▼</th>
+          <th onclick="sortSalesTable('price')">Harga ▲▼</th>
+          <th onclick="sortSalesTable('total')">Total ▲▼</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  
+  let grandTotal = 0;
+  
+  sales.forEach((sale, saleIndex) => {
+    sale.items.forEach((item, i) => {
+      const total = item.price * item.qty;
+      if (i === 0) grandTotal += sale.total;
       
-      if (salesDiv.style.display === 'block') {
-        salesDiv.style.display = 'none';
-        salesBtn.textContent = '📊 Lihat Data Penjualan';
-      } else {
-        renderSalesTable();
-        salesDiv.style.display = 'block';
-        salesBtn.textContent = '✖️ Tutup Data Penjualan';
-      }
-    }
-
-    function renderSalesTable() {
-      const salesDiv = document.getElementById('salesData');
-      
-      if (sales.length === 0) {
-        salesDiv.innerHTML = '<div class="empty-state">Belum ada data penjualan</div>';
-        return;
-      }
-      
-      let html = `
-        <table>
-          <thead>
-            <tr>
-                <th>Waktu</th>
-                <th>Gambar</th>
-                <th onclick="sortSalesTable('name')">Nama ▲▼</th>
-                <th onclick="sortSalesTable('qty')">Qty ▲▼</th>
-                <th onclick="sortSalesTable('price')">Harga ▲▼</th>
-                <th onclick="sortSalesTable('total')">Total ▲▼</th>
-                <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
+      html += `
+        <tr>
+          <td>${i === 0 ? sale.time : ''}</td>
+          <td><img src="${item.image}" alt="${item.name}"></td>
+          <td>${item.name}</td>
+          <td>${item.qty}</td>
+          <td>Rp${formatRupiah(item.price)}</td>
+          <td>Rp${formatRupiah(total)}</td>
+          <td>
+            ${i === 0 ? `<button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus</button>` : ''}
+          </td>
+        </tr>
       `;
-      
-      let grandTotal = 0;
-      
-      sales.forEach((sale, saleIndex) => {
-        sale.items.forEach((item, i) => {
-          const total = item.price * item.qty;
-          if (i === 0) grandTotal += sale.total;
-          
-          html += `
-            <tr>
-              <td>${i === 0 ? sale.time : ''}</td>
-              <td><img src="${item.image}" alt="${item.name}"></td>
-              <td>${item.name}</td>
-              <td>${item.qty}</td>
-              <td>Rp${formatRupiah(item.price)}</td>
-              <td>Rp${formatRupiah(total)}</td>
-              <td>
-                ${i === 0 ? `<button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus</button>` : ''}
-              </td>
-            </tr>
-          `;
-        });
+    });
+  });
+  
+  html += `</tbody></table>`;
+  html += `<div style="margin-top: 15px; text-align: right; font-weight: bold;">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
+  html += `<button id="downloadExcelBtn" onclick="downloadExcel()">Download Data</button>`;
+  
+  salesDiv.innerHTML = html;
+}
+
+async function deleteSalesRecord(index) {
+  if (confirm("Apakah Anda yakin ingin menghapus record penjualan ini?")) {
+    sales.splice(index, 1);
+    await saveToIndexedDB(STORE_NAMES.SALES, sales);
+    renderSalesTable();
+  }
+}
+
+// Ganti fungsi downloadExcel dengan ini
+function downloadExcel() {
+  try {
+    if (sales.length === 0) {
+      showNotification("Belum ada data penjualan untuk diunduh!");
+      return;
+    }
+
+    // Format data dengan pembatas tab
+    let csvData = "Waktu\tNama Barang\tKategori\tJumlah\tHarga Satuan\tTotal\n";
+    
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        csvData += `${sale.time}\t${item.name}\t${item.category}\t${item.qty}\t${item.price}\t${item.qty * item.price}\n`;
       });
+    });
+
+    // Tambahkan total penjualan
+    const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+    csvData += `\nTOTAL PENJUALAN\t\t\t\t${totalSales}`;
+
+    // Buat blob untuk kompatibilitas yang lebih baik
+    const blob = new Blob(["\uFEFF" + csvData], { type: 'text/plain;charset=utf-8' });
+    
+    // Cek metode download yang didukung
+    if (navigator.msSaveBlob) { // IE/Edge
+      navigator.msSaveBlob(blob, `Data_Penjualan_${new Date().toISOString().slice(0,10)}.txt`);
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Data_Penjualan_${new Date().toISOString().slice(0,10)}.txt`;
+      a.style.display = 'none';
       
-      html += `</tbody></table>`;
-      html += `<div style="margin-top: 15px; text-align: right; font-weight: bold;">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
-      html += `<button id="downloadExcelBtn" onclick="downloadExcel()">Download Data</button>`;
+      document.body.appendChild(a);
+      a.click();
       
-      salesDiv.innerHTML = html;
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     }
+    
+    showNotification("Data penjualan berhasil diunduh!");
+  } catch (error) {
+    console.error("Gagal mengunduh data:", error);
+    showNotification("Gagal mengunduh data!");
+  }
+}
 
-    async function deleteSalesRecord(index) {
-      if (confirm("Apakah Anda yakin ingin menghapus record penjualan ini?")) {
-        sales.splice(index, 1);
-        await saveToIndexedDB(STORE_NAMES.SALES, sales);
-        renderSalesTable();
-      }
-    }
+// Fungsi untuk menampilkan modal kategori
+function showCategoryModal() {
+  renderCategoryList();
+  document.getElementById('categoryModal').style.display = 'flex';
+}
 
-    // Ganti fungsi downloadExcel dengan ini
-    function downloadExcel() {
-      try {
-        if (sales.length === 0) {
-          showNotification("Belum ada data penjualan untuk diunduh!");
-          return;
-        }
-
-        // Format data dengan pembatas tab
-        let csvData = "Waktu\tNama Barang\tKategori\tJumlah\tHarga Satuan\tTotal\n";
-        
-        sales.forEach(sale => {
-          sale.items.forEach(item => {
-            csvData += `${sale.time}\t${item.name}\t${item.category}\t${item.qty}\t${item.price}\t${item.qty * item.price}\n`;
-          });
-        });
-
-        // Tambahkan total penjualan
-        const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
-        csvData += `\nTOTAL PENJUALAN\t\t\t\t${totalSales}`;
-
-        // Buat blob untuk kompatibilitas yang lebih baik
-        const blob = new Blob(["\uFEFF" + csvData], { type: 'text/plain;charset=utf-8' });
-        
-        // Cek metode download yang didukung
-        if (navigator.msSaveBlob) { // IE/Edge
-          navigator.msSaveBlob(blob, `Data_Penjualan_${new Date().toISOString().slice(0,10)}.txt`);
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `Data_Penjualan_${new Date().toISOString().slice(0,10)}.txt`;
-          a.style.display = 'none';
-          
-          document.body.appendChild(a);
-          a.click();
-          
-          setTimeout(() => {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-          }, 100);
-        }
-        
-        showNotification("Data penjualan berhasil diunduh!");
-      } catch (error) {
-        console.error("Gagal mengunduh data:", error);
-        showNotification("Gagal mengunduh data!");
-      }
-    }
-
-
-
-    // Fungsi untuk menampilkan modal kategori
-    function showCategoryModal() {
-      renderCategoryList();
-      document.getElementById('categoryModal').style.display = 'flex';
-    }
-
-    // Fungsi untuk menutup modal kategori
-   function closeCategoryModal() {
+// Fungsi untuk menutup modal kategori
+function closeCategoryModal() {
   document.getElementById('categoryModal').style.display = 'none';
 }
 
-    // Fungsi untuk merender daftar kategori
-    function renderCategoryList() {
-      const categoryList = document.getElementById('categoryList');
-      categoryList.innerHTML = '';
-      
-      if (categories.length === 0) {
-        categoryList.innerHTML = '<div class="empty-state">Belum ada jenis barang</div>';
-        return;
-      }
-      
-      categories.forEach((category, index) => {
-        const item = document.createElement('div');
-        item.className = 'category-item';
-        item.innerHTML = `
-          <span>${capitalizeFirstLetter(category)}</span>
-          <button onclick="deleteCategory('${category}', ${index})">Hapus</button>
-        `;
-        categoryList.appendChild(item);
-      });
-    }
+// Fungsi untuk merender daftar kategori
+function renderCategoryList() {
+  const categoryList = document.getElementById('categoryList');
+  categoryList.innerHTML = '';
+  
+  if (categories.length === 0) {
+    categoryList.innerHTML = '<div class="empty-state">Belum ada jenis barang</div>';
+    return;
+  }
+  
+  categories.forEach((category, index) => {
+    const item = document.createElement('div');
+    item.className = 'category-item';
+    item.innerHTML = `
+      <span>${capitalizeFirstLetter(category)}</span>
+      <button onclick="deleteCategory('${category}', ${index})">Hapus</button>
+    `;
+    categoryList.appendChild(item);
+  });
+}
 
-    // Fungsi untuk menambahkan kategori baru
-    async function addNewCategory(event) {
+// Fungsi untuk menambahkan kategori baru
+async function addNewCategory(event) {
   event.preventDefault();
   const nameInput = document.getElementById('newCategoryName');
   const name = nameInput.value.trim().toLowerCase();
@@ -1349,143 +1313,276 @@ function resetOrientation(img, orientation) {
   renderCategoryList();
 }
 
-    // Fungsi untuk menghapus kategori
-    async function deleteCategory(category, index) {
-      if (confirm(`Hapus jenis barang "${capitalizeFirstLetter(category)}"? Semua produk dalam kategori ini juga akan dihapus.`)) {
-        // Hapus dari array categories
-        categories.splice(index, 1);
-        
-        // Hapus dari data produk
-        delete data[category];
-        
-        // Hapus dari cart jika ada
-        for (let i = cart.length - 1; i >= 0; i--) {
-          if (cart[i].category === category) {
-            cart.splice(i, 1);
-          }
-        }
-        
-        // Simpan perubahan ke database
-        const categoriesToSave = categories.map(name => ({ name }));
-        await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
-        await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-        await saveToIndexedDB(STORE_NAMES.CART, cart);
-        
-        // Hapus tab content
-        const tabContent = document.getElementById(category);
-        if (tabContent) tabContent.remove();
-        
-        // Hapus tombol navbar
-        const navbarButtons = document.querySelectorAll('.navbar button');
-        navbarButtons.forEach(button => {
-          if (button.textContent === capitalizeFirstLetter(category)) {
-            button.remove();
-          }
-        });
-        
-        // Jika kategori yang dihapus sedang aktif, pindah ke kategori pertama
-        const activeTab = document.querySelector('.tab-content.active');
-        if (!activeTab || activeTab.id === category) {
-          showTab(categories[0] || 'stiker');
-        }
-        
-        renderProducts();
-        updateCartBadge();
-        renderCategoryList();
-        showNotification(`Jenis barang "${capitalizeFirstLetter(category)}" dihapus!`);
-      }
-    }
-
-    // Fungsi untuk update navbar dengan kategori terbaru
-    function updateNavbarCategories() {
-      const navbar = document.querySelector('.navbar');
-      
-      // Hapus semua tombol kategori (kecuali tombol manage category)
-      const buttons = navbar.querySelectorAll('button:not(.manage-category)');
-      buttons.forEach(button => button.remove());
-      
-      // Tambahkan tombol kategori baru
-      categories.forEach(category => {
-        const button = document.createElement('button');
-        button.textContent = capitalizeFirstLetter(category);
-        button.onclick = () => showTab(category);
-        navbar.insertBefore(button, document.querySelector('.navbar .manage-category'));
-      });
-      
-      // Tambahkan tab content untuk kategori baru yang belum ada
-      categories.forEach(category => {
-        if (!document.getElementById(category)) {
-          const tabContents = document.querySelector('.tab-content.active').parentNode;
-          const newTabContent = document.createElement('div');
-          newTabContent.id = category;
-          newTabContent.className = 'tab-content';
-          newTabContent.innerHTML = `
-            <div class="product-list" id="${category}-list"></div>
-            <form class="add-form" onsubmit="addProduct(event, '${category}')">
-              <p>Nama Barang</p>
-              <input type="text" name="name" placeholder="Nama Barang" required />
-              <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
-              <img class="preview" />
-              <p>Harga</p>
-              <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
-              <p>Stok Barang</p>
-              <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
-              <p>Batas Stok Barang</p>
-              <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
-              <button type="submit">➕ Tambah Barang</button>
-            </form>
-          `;
-          tabContents.appendChild(newTabContent);
-        }
-      });
-      
-      // Hapus tab content untuk kategori yang tidak ada lagi
-      document.querySelectorAll('.tab-content').forEach(tab => {
-        if (!categories.includes(tab.id) && tab.id !== 'categoryModal') {
-          tab.remove();
-        }
-      });
-    }
-
-    // Initialize
-    document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
-    document.getElementById('cartButton').addEventListener('click', function() {
-  if (cart.length > 0) {
-    showCartModal();
-  } else {
-    alert('Keranjang kosong!');
+// Fungsi untuk menghapus kategori
+async function deleteCategory(category, index) {
+  if (!confirm(`Hapus jenis barang "${capitalizeFirstLetter(category)}"? Semua produk dalam kategori ini juga akan dihapus.`)) {
+    return;
   }
-});
+
+  try {
+    // Hapus dari array categories
+    const removedCategory = categories.splice(index, 1)[0];
     
-    // Load data saat halaman dimuat
-    window.addEventListener('DOMContentLoaded', () => {
-      loadFromDatabase();
-    });
-
-    // Search functionality
-    document.getElementById('searchInput').addEventListener('input', function(event) {
-      const searchTerm = event.target.value.toLowerCase();
-      filterProducts(searchTerm);
-    });
-
-    function filterProducts(searchTerm) {
-      categories.forEach(category => {
-        const container = document.getElementById(`${category}-list`);
-        if (!container) return;
-
-        const products = container.querySelectorAll('.product-card');
-        products.forEach(product => {
-          const productName = product.querySelector('strong').textContent.toLowerCase();
-          if (productName.includes(searchTerm)) {
-            product.style.display = 'flex';
-          } else {
-            product.style.display = 'none';
-          }
-        });
-      });
+    // Hapus dari data produk
+    delete data[removedCategory];
+    
+    // Hapus dari cart jika ada (gunakan filter untuk menghindari masalah index)
+    cart = cart.filter(item => item.category !== removedCategory);
+    
+    // Simpan perubahan ke database
+    const categoriesToSave = categories.map(name => ({ name }));
+    await Promise.all([
+      saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave),
+      saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+      saveToIndexedDB(STORE_NAMES.CART, cart)
+    ]);
+    
+    // Hapus tab content
+    const tabContent = document.getElementById(removedCategory);
+    if (tabContent) tabContent.remove();
+    
+    // Hapus tombol navbar
+    const navbarButtons = Array.from(document.querySelectorAll('.navbar button'));
+    const buttonToRemove = navbarButtons.find(button => 
+      button.textContent.toLowerCase() === removedCategory
+    );
+    if (buttonToRemove) buttonToRemove.remove();
+    
+    // Jika kategori yang dihapus sedang aktif, pindah ke kategori pertama
+    const activeTab = document.querySelector('.tab-content.active');
+    if (!activeTab || activeTab.id === removedCategory) {
+      showTab(categories[0] || 'stiker');
     }
+    
+    renderProducts();
+    updateCartBadge();
+    renderCategoryList();
+    showNotification(`Jenis barang "${capitalizeFirstLetter(removedCategory)}" dihapus!`);
+  } catch (error) {
+    console.error("Gagal menghapus kategori:", error);
+    showNotification("Gagal menghapus kategori!");
+  }
+}
 
-    webView.getSettings().setAllowFileAccess(true);
-    webView.getSettings().setAllowContentAccess(true);
-    webView.getSettings().setAllowFileAccessFromFileURLs(true);
-    webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
+// Fungsi untuk update navbar dengan kategori terbaru
+function updateNavbarCategories() {
+  const navbar = document.querySelector('.navbar');
+  
+  // Hapus semua tombol kategori (kecuali tombol manage category)
+  const buttons = navbar.querySelectorAll('button:not(.manage-category)');
+  buttons.forEach(button => button.remove());
+  
+  // Tambahkan tombol kategori baru
+  categories.forEach(category => {
+    const button = document.createElement('button');
+    button.textContent = capitalizeFirstLetter(category);
+    button.onclick = () => showTab(category);
+    navbar.insertBefore(button, document.querySelector('.navbar .manage-category'));
+  });
+  
+  // Tambahkan tab content untuk kategori baru yang belum ada
+  categories.forEach(category => {
+    if (!document.getElementById(category)) {
+      const tabContents = document.querySelector('.tab-content.active').parentNode;
+      const newTabContent = document.createElement('div');
+      newTabContent.id = category;
+      newTabContent.className = 'tab-content';
+      newTabContent.innerHTML = `
+        <div class="product-list" id="${category}-list"></div>
+        <form class="add-form" onsubmit="addProduct(event, '${category}')">
+          <p>Nama Barang</p>
+          <input type="text" name="name" placeholder="Nama Barang" required />
+          <input type="file" name="imageFile" accept="image/*" capture="environment" required onchange="previewImage(event, this)" />
+          <img class="preview" />
+          <p>Harga</p>
+          <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
+          <p>Stok Barang</p>
+          <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
+          <p>Batas Stok Barang</p>
+          <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
+          <button type="submit">➕ Tambah Barang</button>
+        </form>
+      `;
+      tabContents.appendChild(newTabContent);
+    }
+  });
+  
+  // Hapus tab content untuk kategori yang tidak ada lagi
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    if (!categories.includes(tab.id) && tab.id !== 'categoryModal') {
+      tab.remove();
+    }
+  });
+}
+
+function filterProducts(searchTerm) {
+  categories.forEach(category => {
+    const container = document.getElementById(`${category}-list`);
+    if (!container) return;
+
+    const products = container.querySelectorAll('.product-card');
+    products.forEach(product => {
+      const productName = product.querySelector('strong').textContent.toLowerCase();
+      if (productName.includes(searchTerm)) {
+        product.style.display = 'flex';
+      } else {
+        product.style.display = 'none';
+      }
+    });
+  });
+}
+
+// Fungsi untuk export data
+async function exportData() {
+  try {
+    // Ambil semua data dari IndexedDB
+    const allData = {
+      products: await loadFromIndexedDB(STORE_NAMES.PRODUCTS),
+      cart: await loadFromIndexedDB(STORE_NAMES.CART),
+      sales: await loadFromIndexedDB(STORE_NAMES.SALES),
+      categories: await loadFromIndexedDB(STORE_NAMES.CATEGORIES),
+      darkMode: localStorage.getItem('darkMode') === 'true',
+      timestamp: new Date().toISOString()
+    };
+
+    // Buat blob dari data
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    // Buat elemen anchor untuk download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
+    
+    // Trigger download
+    document.body.appendChild(a);
+    a.click();
+    
+    // Bersihkan
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+    
+    showNotification('Data berhasil di-export!');
+  } catch (error) {
+    console.error('Gagal export data:', error);
+    showNotification('Gagal export data!');
+  }
+}
+
+// Fungsi untuk import data
+async function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  
+  reader.onload = async (e) => {
+    try {
+      const importedData = JSON.parse(e.target.result);
+      
+      if (!confirm(`Import data dari ${new Date(importedData.timestamp).toLocaleString()}? Semua data saat ini akan diganti.`)) {
+        return;
+      }
+      
+      // Simpan data ke IndexedDB
+      await Promise.all([
+        saveToIndexedDB(STORE_NAMES.PRODUCTS, importedData.products || []),
+        saveToIndexedDB(STORE_NAMES.CART, importedData.cart || []),
+        saveToIndexedDB(STORE_NAMES.SALES, importedData.sales || []),
+        saveToIndexedDB(STORE_NAMES.CATEGORIES, importedData.categories || [])
+      ]);
+      
+      // Update dark mode
+      if (importedData.darkMode !== undefined) {
+        if (importedData.darkMode) {
+          document.body.classList.add('dark-mode');
+          document.getElementById('themeToggle').textContent = '☀';
+        } else {
+          document.body.classList.remove('dark-mode');
+          document.getElementById('themeToggle').textContent = '🌙';
+        }
+        localStorage.setItem('darkMode', importedData.darkMode);
+      }
+      
+      // Reload aplikasi
+      await loadFromDatabase();
+      closeBackupModal();
+      showNotification('Data berhasil di-import!');
+    } catch (error) {
+      console.error('Gagal import data:', error);
+      showNotification('Format file tidak valid!');
+    }
+  };
+  
+  reader.onerror = () => {
+    showNotification('Gagal membaca file!');
+  };
+  
+  reader.readAsText(file);
+}
+
+
+// Toggle backup submenu
+function toggleBackupMenu(event) {
+  event.preventDefault(); // Mencegah event bubbling
+  event.stopPropagation(); // Menghentikan propagasi event
+  
+  const submenu = document.getElementById('backupSubmenu');
+  const parentItem = submenu.parentElement;
+  
+  if (submenu.style.display === 'block') {
+    submenu.style.display = 'none';
+    parentItem.querySelector('a').innerHTML = '💾 Backup & Restore ▼';
+  } else {
+    submenu.style.display = 'block';
+    parentItem.querySelector('a').innerHTML = '💾 Backup & Restore ▲';
+  }
+  
+  // Jangan tutup sidebar di sini
+}
+
+// Show import dialog
+function showImportDialog() {
+  document.getElementById('importFile').click();
+}
+
+// Reset all data
+async function resetAllData() {
+  if (confirm("Apakah Anda yakin ingin mereset SEMUA data?\nIni akan menghapus semua produk, penjualan, dan keranjang belanja.")) {
+    try {
+      // Clear all data
+      data = {
+        stiker: [],
+        poster: [],
+        ganci: [],
+        standee: [],
+        penggaris: []
+      };
+      cart = [];
+      sales = [];
+      categories = ['stiker', 'poster', 'ganci', 'standee', 'penggaris'];
+      
+      // Save empty data to IndexedDB
+      await Promise.all([
+        saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+        saveToIndexedDB(STORE_NAMES.CART, cart),
+        saveToIndexedDB(STORE_NAMES.SALES, sales),
+        saveToIndexedDB(STORE_NAMES.CATEGORIES, categories.map(name => ({ name })))
+      ]);
+      
+      // Reset UI
+      renderProducts();
+      updateCartBadge();
+      renderCategoryList();
+      updateNavbarCategories();
+      showTab('stiker');
+      
+      showNotification('Semua data telah direset!');
+    } catch (error) {
+      console.error("Gagal mereset data:", error);
+      showNotification('Gagal mereset data!');
+    }
+  }
+}
