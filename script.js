@@ -75,7 +75,7 @@ function closeBackupModal() {
 }
 
 function showHelp() {
-  alert("Fitur bantuan akan ditambahkan di versi berikutnya");
+  alert("Aplikasi ini dibuat oleh @adamsyaifulloh01 dari CacaCafe!");
 }
 
 // Fungsi untuk menampilkan modal keranjang
@@ -1223,11 +1223,6 @@ function downloadExcel() {
   }
 }
 
-// Fungsi untuk menampilkan modal kategori
-function showCategoryModal() {
-  renderCategoryList();
-  document.getElementById('categoryModal').style.display = 'flex';
-}
 
 // Fungsi untuk menutup modal kategori
 function closeCategoryModal() {
