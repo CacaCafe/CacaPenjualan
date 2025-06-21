@@ -145,16 +145,18 @@ input[type="file"]::file-selector-button {
 /* Notification Popup */
 .notification {
   position: fixed;
-  bottom: 90px; /* Pindahkan ke atas tombol keranjang */
+  bottom: 90px;
   right: 20px;
   background-color: #27ae60;
   color: white;
-  padding: 10px 20px;
+  padding: 10px 15px;
   border-radius: 5px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
   z-index: 150;
   display: flex;
   align-items: center;
+  max-width: 250px; /* Lebar maksimum */
+  width: auto; /* Lebar menyesuaikan konten */
   animation: fadeIn 0.3s, fadeOut 0.5s 2.5s forwards;
 }
 
@@ -320,7 +322,7 @@ input[type="file"]::file-selector-button {
       padding: 10px 0;
     }
     body.dark-mode .navbar {
-      background-color: #333;
+      background-color: #1a1a1a;
     }
     .navbar::-webkit-scrollbar {
       display: none;
@@ -337,11 +339,14 @@ input[type="file"]::file-selector-button {
       border-color: #27ae60;
     }
     .dark-mode .navbar button {
-      background: #222020;
-      color: white;
+      background: #000000; /* Warna lebih terang dari background navbar */
+      color: #f0f0f0; /* Warna teks putih */
+      border: 1px solid #555; /* Tambahkan border untuk kontras */
     }
+    
     .navbar button:hover, .navbar button.active {
       background-color: #d43fd5;
+      color: white; /* Pastikan teks tetap terlihat saat hover */
     }
     .dark-mode .navbar button:hover, 
     .dark-mode .navbar button.active {
