@@ -436,7 +436,8 @@ async function loadFromDatabase() {
     // Load categories
     const loadedCategories = await loadFromIndexedDB(STORE_NAMES.CATEGORIES);
     if (loadedCategories && loadedCategories.length > 0) {
-      categories = loadedCategories.map(c => c.name);
+      // Perubahan di sini: menambahkan sorting saat memuat kategori
+      categories = loadedCategories.map(c => c.name).sort((a, b) => a.localeCompare(b));
       updateNavbarCategories();
     }
     
@@ -1268,7 +1269,12 @@ async function addNewCategory(event) {
     return;
   }
   
+  // Tambahkan kategori baru
   categories.push(name);
+  
+  // Urutkan kategori berdasarkan nama
+  categories.sort((a, b) => a.localeCompare(b));
+  
   if (!data[name]) data[name] = []; // Inisialisasi array kosong untuk kategori baru
   
   // Simpan kategori baru ke database
@@ -1285,29 +1291,36 @@ async function addNewCategory(event) {
     <form class="add-form" onsubmit="addProduct(event, '${name}')">
       <p>Nama Barang</p>
       <input type="text" name="name" placeholder="Nama Barang" required />
-      <input type="file" name="imageFile" accept="image/*" required onchange="previewImage(event, this)" />
-      <img class="preview" />
+      <div class="image-input-container">
+        <div class="image-source-buttons">
+          <button type="button" class="image-source-btn" onclick="openCamera('${name}')">📷 Kamera</button>
+          <button type="button" class="image-source-btn" onclick="openGallery('${name}')">🖼️ Galeri</button>
+        </div>
+        <input type="file" id="imageInput-${name}" name="imageFile" accept="image/*" required 
+          onchange="previewImage(event, '${name}')" style="display: none">
+        <img id="imagePreview-${name}" class="preview" style="display: none"/>
+      </div>
       <p>Harga</p>
       <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
-      <p>Stok</p>
+      <p>Stok Barang</p>
       <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
-      <p>Stok Limit</p>
+      <p>Batas Stok Barang</p>
       <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
       <button type="submit">➕ Tambah Barang</button>
     </form>
   `;
   tabContents.appendChild(newTabContent);
   
-  // Tambahkan tombol navbar baru
-  const navbar = document.querySelector('.navbar');
-  const newButton = document.createElement('button');
-  newButton.textContent = capitalizeFirstLetter(name);
-  newButton.onclick = () => showTab(name);
-  navbar.insertBefore(newButton, document.querySelector('.navbar .manage-category'));
+  // Hapus semua tombol kategori dan buat ulang dengan urutan yang benar
+  updateNavbarCategories();
   
   nameInput.value = '';
   showNotification(`Jenis barang "${capitalizeFirstLetter(name)}" ditambahkan!`);
   renderCategoryList();
+  
+  // Pindah ke tab baru yang dibuat
+  showTab(name);
+  closeCategoryModal();
 }
 
 // Fungsi untuk menghapus kategori
@@ -1369,7 +1382,7 @@ function updateNavbarCategories() {
   const buttons = navbar.querySelectorAll('button:not(.manage-category)');
   buttons.forEach(button => button.remove());
   
-  // Tambahkan tombol kategori baru
+  // Tambahkan tombol kategori baru (sudah terurut)
   categories.forEach(category => {
     const button = document.createElement('button');
     button.textContent = capitalizeFirstLetter(category);
@@ -1390,30 +1403,14 @@ function updateNavbarCategories() {
           <p>Nama Barang</p>
           <input type="text" name="name" placeholder="Nama Barang" required />
           <div class="image-input-container">
-  <!-- Tombol Pilihan -->
-  <div class="image-source-buttons">
-    <button type="button" class="image-source-btn" onclick="openCamera()">
-      📷 Kamera
-    </button>
-    <button type="button" class="image-source-btn" onclick="openGallery()">
-      🖼️ Galeri
-    </button>
-  </div>
-
-  <!-- Input File Tersembunyi -->
-  <input 
-    type="file" 
-    id="imageInput"
-    name="imageFile" 
-    accept="image/jpeg, image/png" 
-    style="display: none"
-    onchange="previewImage(event)"
-  >
-  
-  <!-- Preview Gambar -->
-  <img id="imagePreview" class="preview" style="display: none"/>
-</div>
-          <img class="preview" />
+            <div class="image-source-buttons">
+              <button type="button" class="image-source-btn" onclick="openCamera('${category}')">📷 Kamera</button>
+              <button type="button" class="image-source-btn" onclick="openGallery('${category}')">🖼️ Galeri</button>
+            </div>
+            <input type="file" id="imageInput-${category}" name="imageFile" accept="image/*" required 
+              onchange="previewImage(event, '${category}')" style="display: none">
+            <img id="imagePreview-${category}" class="preview" style="display: none"/>
+          </div>
           <p>Harga</p>
           <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
           <p>Stok Barang</p>
@@ -1608,22 +1605,24 @@ async function resetAllData() {
 }
 
 // Fungsi untuk membuka kamera
-function openCamera() {
-  const input = document.getElementById('imageInput');
-  input.removeAttribute('capture'); // Hapus atribut capture lama
-  input.setAttribute('capture', 'environment'); // Kamera belakang
-  input.click();
+function openCamera(category) {
+  const input = document.getElementById(`imageInput-${category}`);
+  if (input) {
+    input.removeAttribute('capture');
+    input.setAttribute('capture', 'environment');
+    input.click();
+  }
 }
 
-// Fungsi untuk membuka galeri
-function openGallery() {
-  const input = document.getElementById('imageInput');
-  input.removeAttribute('capture'); // Pastikan tidak ada atribut capture
-  input.click();
+function openGallery(category) {
+  const input = document.getElementById(`imageInput-${category}`);
+  if (input) {
+    input.removeAttribute('capture');
+    input.click();
+  }
 }
 
-// Fungsi preview gambar (modifikasi dari yang sudah ada)
-function previewImage(event) {
+function previewImage(event, category) {
   const file = event.target.files[0];
   if (!file) return;
 
@@ -1634,7 +1633,7 @@ function previewImage(event) {
     return;
   }
 
-  const preview = document.getElementById('imagePreview');
+  const preview = document.getElementById(`imagePreview-${category}`);
   const reader = new FileReader();
   
   reader.onload = function(e) {
