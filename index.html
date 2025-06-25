@@ -48,11 +48,6 @@
   </div>
 
 <div class="navbar main-navbar"> <!-- Tambahkan class main-navbar -->
-  <button onclick="showTab('stiker')" class="active">Stiker</button>
-  <button onclick="showTab('poster')">Poster</button>
-  <button onclick="showTab('ganci')">Ganci</button>
-  <button onclick="showTab('standee')">Standee</button>
-  <button onclick="showTab('penggaris')">Penggaris</button>
   <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
 </div>
 
@@ -76,26 +71,14 @@
     </div>
   </div>
 
-  <div id="stiker" class="tab-content active">
-    <div class="product-list" id="stiker-list"></div>
-    <form class="add-form" onsubmit="addProduct(event, 'stiker')">
-      <p>Nama Barang</p>
-      <input type="text" name="name" placeholder="Nama Barang" required />
-     <input type="file" name="imageFile" accept="image/*" required onchange="previewImage(event, this)" />
-      <img class="preview" />
-      <p>harga</p>
-      <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
-      <p>Stok</p>
-      <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
-      <p>Stok Limit</p>
-      <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
-      <button type="submit">➕ Tambah Barang</button>
-    </form>
-  </div>
+<!-- Tab konten buat melihat hasil update barang  -->
+<div id="dynamic-tabs">
+</div>
 
   <!-- Edit Modal -->
-<div id="editModal" class="modal">
-  <div class="modal-content">
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content" onclick="event.stopPropagation()">
     <button class="close-modal" onclick="closeEditModal()">×</button>
     <form class="edit-form" onsubmit="saveEditedProduct(event)">
       <input type="hidden" name="category" id="editCategory">
@@ -105,9 +88,14 @@
       <input type="text" name="name" id="editName" required>
       
       <label>Gambar Barang</label>
-      <input type="file" name="imageFile" id="editImageFile" accept="image/*">
-      
-      <img class="preview" id="editPreview">
+      <div class="image-input-container">
+        <div class="image-source-buttons">
+          <button type="button" class="image-source-btn" onclick="openCamera('edit')">📷 Kamera</button>
+          <button type="button" class="image-source-btn" onclick="openGallery('edit')">🖼️ Galeri</button>
+        </div>
+        <input type="file" id="editImageFile" name="imageFile" accept="image/*" style="display: none" onchange="previewImage(event, 'edit')">
+        <img class="preview" id="editPreview" style="display: none"/>
+      </div>
       
       <label>Harga</label>
       <input type="number" name="price" id="editPrice" required min="0">
@@ -125,7 +113,7 @@
 
   <!-- Category Modal -->
 <div id="categoryModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content" onclick="event.stopPropagation()">
     <button class="close-modal" onclick="closeCategoryModal()">×</button>
     <h3>Kelola Jenis Barang</h3>
     <form onsubmit="addNewCategory(event)">
@@ -140,7 +128,7 @@
 
 <!-- Backup & Restore Modal -->
 <div id="backupModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content" onclick="event.stopPropagation()">
     <button class="close-modal" onclick="closeBackupModal()">×</button>
     <h3>Backup & Restore Data</h3>
     <div class="backup-options">
@@ -182,5 +170,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="script.js"></script>
   
+<!-- Welcome Modal -->
+<div id="welcomeModal" class="modal">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <h3>Selamat Datang di Aplikasi Penjualan Barang</h3>
+    <div class="welcome-message">
+      <p>Terima kasih telah menggunakan aplikasi ini!</p>
+      <p>Aplikasi ini membantu Anda mengelola:</p>
+      <ul>
+        <li>Daftar produk dan kategori</li>
+        <li>Transaksi penjualan</li>
+        <li>Laporan penjualan</li>
+      </ul>
+      <p>Selamat menggunakan!</p>
+    </div>
+    <button onclick="closeWelcomeModal()" class="welcome-close-btn">Mengerti</button>
+  </div>
+</div>
+
+
 </body>
 </html>
