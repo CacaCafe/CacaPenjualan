@@ -17,29 +17,6 @@ function adjustContentMargin() {
 window.addEventListener('load', adjustContentMargin);
 window.addEventListener('resize', adjustContentMargin);
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-  loadFromDatabase();
-  adjustContentMargin();
-  initTheme();
-  
-  // Event listeners
-  document.getElementById('themeToggle').addEventListener('click', cycleTheme);
-  document.getElementById('cartButton').addEventListener('click', showCartModal);
-  
-  // Format input harga
-  document.querySelectorAll('input[type="number"][name="price"]').forEach(input => {
-    input.addEventListener('input', function() {
-      formatRupiahInput(this);
-    });
-  });
-  
-  // Load active tab
-  const savedTab = localStorage.getItem('activeTab');
-  if (savedTab && document.getElementById(savedTab)) {
-    showTab(savedTab);
-  }
-});
 
 // Sidebar functions
 function toggleSidebar() {
@@ -489,23 +466,12 @@ function loadFromIndexedDB(storeName) {
 function showNotification(message) {
   const notification = document.getElementById('notification');
   notification.textContent = message;
-  
-  // Reset state sebelum animasi
   notification.style.display = 'flex';
+  
+  // Reset animasi
   notification.style.animation = 'none';
-  notification.style.opacity = '0';
-  notification.style.transform = 'translateX(-50%) translateY(20px)';
-  
-  // Trigger reflow
-  void notification.offsetWidth;
-  
-  // Jalankan animasi masuk
-  notification.style.animation = 'fadeInUp 0.3s ease-out forwards';
-  
-  // Set timeout untuk animasi keluar
-  setTimeout(() => {
-    notification.style.animation = 'fadeOutDown 0.5s ease-out forwards';
-  }, 2500);
+  void notification.offsetWidth; // Trigger reflow
+  notification.style.animation = 'fadeInUp 0.3s ease-out, fadeOutDown 0.5s 2.5s forwards';
 }
 
 // Load data dari IndexedDB
@@ -611,7 +577,7 @@ function showTab(tabName) {
       tab.style.transform = 'translateY(10px)';
       setTimeout(() => {
         tab.classList.remove('active');
-      }, 300); // Sesuaikan dengan durasi animasi
+      }, 300);
     }
   });
   
@@ -638,8 +604,14 @@ function showTab(tabName) {
   // Tambahkan kelas active-category ke tombol yang sesuai
   const activeButton = document.querySelector(`.navbar button[onclick="showTab('${tabName}')"]`);
   if (activeButton) {
+    // Hapus animasi yang mungkin sedang berjalan
+    activeButton.style.animation = 'none';
+    void activeButton.offsetWidth; // Trigger reflow
+    
+    // Tambahkan kelas dan mulai animasi
     activeButton.classList.add('active');
     activeButton.classList.add('active-category');
+    activeButton.style.animation = 'liquid 0.4s ease-out';
   }
   
   // Simpan tab yang sedang aktif di localStorage
@@ -955,10 +927,6 @@ function editProduct(category, index) {
   document.getElementById('editModal').style.display = 'flex';
 }
 
-// Fungsi untuk menutup modal edit
-function closeEditModal() {
-  document.getElementById('editModal').style.display = 'none';
-}
 
 // Fungsi untuk menyimpan perubahan produk
 async function saveEditedProduct(event) {
@@ -1497,22 +1465,43 @@ function updateNavbarCategories() {
   }
 }
 
+// Fungsi pencarian yang diperbaiki
 function filterProducts(searchTerm) {
-  categories.forEach(category => {
-    const container = document.getElementById(`${category}-list`);
-    if (!container) return;
-
-    const products = container.querySelectorAll('.product-card');
-    products.forEach(product => {
-      const productName = product.querySelector('strong').textContent.toLowerCase();
-      if (productName.includes(searchTerm)) {
-        product.style.display = 'flex';
-      } else {
-        product.style.display = 'none';
-      }
+  searchTerm = searchTerm.toLowerCase().trim();
+  
+  // Jika search kosong, tampilkan semua produk
+  if (!searchTerm) {
+    document.querySelectorAll('.product-card').forEach(card => {
+      card.style.display = 'flex';
     });
+    return;
+  }
+
+  // Filter produk berdasarkan nama
+  document.querySelectorAll('.product-card').forEach(card => {
+    const productName = card.querySelector('strong').textContent.toLowerCase();
+    if (productName.includes(searchTerm)) {
+      card.style.display = 'flex';
+    } else {
+      card.style.display = 'none';
+    }
   });
 }
+
+// Tambahkan event listener untuk input pencarian
+document.getElementById('searchInput').addEventListener('input', function() {
+  filterProducts(this.value);
+});
+
+// Tambahkan juga di bagian DOMContentLoaded untuk memastikan
+document.addEventListener('DOMContentLoaded', function() {
+  // ... kode yang sudah ada ...
+  
+  // Event listener untuk pencarian
+  document.getElementById('searchInput').addEventListener('input', function() {
+    filterProducts(this.value);
+  });
+});
 
 // Fungsi untuk export data
 async function exportData() {
@@ -1740,11 +1729,6 @@ function openGallery(context) {
   }
 }
 
-function showCategoryModal() {
-  renderCategoryList();
-  document.getElementById('categoryModal').style.display = 'flex';
-}
-
 
 // Add to your script.js
 const themes = [
@@ -1782,24 +1766,6 @@ function cycleTheme() {
   }, 500); // Sesuaikan dengan durasi animasi
 }
 
-function initTheme() {
-  const savedTheme = localStorage.getItem('currentTheme') || 'default';
-  
-  // Hapus semua class tema
-  document.body.classList.remove('dark-mode');
-  
-  // Terapkan tema yang disimpan
-  if (savedTheme !== 'default') {
-    document.body.classList.add(savedTheme);
-  }
-  
-  // Temukan index tema saat ini
-  const index = themes.findIndex(t => t.name === savedTheme);
-  if (index !== -1) {
-    currentThemeIndex = index;
-    document.getElementById('themeToggle').textContent = themes[index].label;
-  }
-}
 
 // Initialize theme from localStorage
 function initTheme() {
@@ -1907,10 +1873,16 @@ function closeEditModal() {
 function showCategoryModal() {
   renderCategoryList();
   document.getElementById('categoryModal').style.display = 'flex';
-}
-
-function closeCategoryModal() {
-  document.getElementById('categoryModal').style.display = 'none';
+  
+  // Tambahkan animasi liquid ke tombol "Jenis Barang"
+  const manageBtn = document.querySelector('.manage-category');
+  manageBtn.classList.add('active');
+  manageBtn.style.animation = 'liquid 0.4s ease-out';
+  
+  // Hapus animasi setelah selesai
+  setTimeout(() => {
+    manageBtn.classList.remove('active');
+  }, 400);
 }
 
 
