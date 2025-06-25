@@ -21,17 +21,23 @@ window.addEventListener('resize', adjustContentMargin);
 document.addEventListener('DOMContentLoaded', function() {
   loadFromDatabase();
   adjustContentMargin();
+  initTheme();
   
   // Event listeners
-  document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
-  // ... event listeners lainnya
-   document.getElementById('cartButton').addEventListener('click', showCartModal);
+  document.getElementById('themeToggle').addEventListener('click', cycleTheme);
+  document.getElementById('cartButton').addEventListener('click', showCartModal);
+  
+  // Format input harga
+  document.querySelectorAll('input[type="number"][name="price"]').forEach(input => {
+    input.addEventListener('input', function() {
+      formatRupiahInput(this);
+    });
+  });
+  
   // Load active tab
   const savedTab = localStorage.getItem('activeTab');
   if (savedTab && document.getElementById(savedTab)) {
     showTab(savedTab);
-  } else {
-    showTab('stiker');
   }
 });
 
@@ -70,18 +76,53 @@ function closeBackupModal() {
 }
 
 function showHelp() {
-  alert("Aplikasi ini dibuat oleh @adamsyaifulloh01 dari CacaCafe!");
+  document.getElementById('welcomeModal').style.display = 'flex';
 }
 
+
+
 // Fungsi untuk menampilkan modal keranjang
-function showCartModal() {
-  renderCartModalContent();
-  document.getElementById('cartModal').style.display = 'flex';
+
+
+let isCartModalOpen = false;
+
+function toggleCartModal() {
+  const cartModal = document.getElementById('cartModal');
+  
+  if (isCartModalOpen) {
+    // Jika modal sudah terbuka, tutup modal
+    cartModal.style.display = 'none';
+    isCartModalOpen = false;
+  } else {
+    // Jika modal tertutup, buka modal
+    renderCartModalContent();
+    cartModal.style.display = 'flex';
+    isCartModalOpen = true;
+  }
 }
+
 
 function closeCartModal() {
   document.getElementById('cartModal').style.display = 'none';
+  isCartModalOpen = false;
 }
+
+// Update event listener untuk tombol keranjang
+document.getElementById('cartButton').addEventListener('click', function(event) {
+  event.stopPropagation(); // Mencegah event bubbling
+  toggleCartModal();
+});
+
+// Tambahkan event listener untuk menutup modal saat klik di luar
+document.addEventListener('click', function(event) {
+  const cartModal = document.getElementById('cartModal');
+  const cartButton = document.getElementById('cartButton');
+  
+  // Jika klik di luar modal dan tombol keranjang, tutup modal
+  if (isCartModalOpen && !cartModal.contains(event.target) && !cartButton.contains(event.target)) {
+    closeCartModal();
+  }
+});
 
 // Fungsi untuk merender isi modal keranjang
 function renderCartModalContent() {
@@ -118,8 +159,36 @@ function renderCartModalContent() {
     `;
   });
   
+  // Tambahkan opsi pembayaran
+  html += `<span>Uang Pembeli</span>
+    <div class="payment-options">
+      <button class="payment-option" onclick="calculateChange(100000)">100.000</button>
+      <button class="payment-option" onclick="calculateChange(50000)">50.000</button>
+      <button class="payment-option" onclick="calculateChange(20000)">20.000</button>
+      <button class="payment-option" onclick="calculateChange(10000)">10.000</button>
+    </div>
+    <div class="payment-summary" id="paymentSummary">
+      <div>Total: Rp${formatRupiah(total)}</div>
+      <div>Dibayar: Rp<span id="amountPaid">0</span></div>
+      <div>Kembalian: Rp<span id="changeAmount">0</span></div>
+    </div>
+  `;
+  
   cartContent.innerHTML = html;
   cartTotal.textContent = formatRupiah(total);
+}
+
+function calculateChange(amount) {
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const change = amount - total;
+  
+  document.getElementById('amountPaid').textContent = formatRupiah(amount);
+  document.getElementById('changeAmount').textContent = formatRupiah(change > 0 ? change : 0);
+  document.getElementById('paymentSummary').style.display = 'block';
+  
+  // Scroll ke bawah untuk melihat hasil perhitungan
+  const cartModalContent = document.getElementById('cartModalContent');
+  cartModalContent.scrollTop = cartModalContent.scrollHeight;
 }
 
 // Fungsi untuk mengurangi jumlah item di keranjang
@@ -297,7 +366,7 @@ let data = {
   penggaris: []
 };
 
-let categories = ['stiker', 'poster', 'ganci', 'standee', 'penggaris'];
+let categories = [];
 let cart = [];
 let sales = [];
 
@@ -420,12 +489,23 @@ function loadFromIndexedDB(storeName) {
 function showNotification(message) {
   const notification = document.getElementById('notification');
   notification.textContent = message;
-  notification.style.display = 'flex';
   
-  // Reset animasi
+  // Reset state sebelum animasi
+  notification.style.display = 'flex';
   notification.style.animation = 'none';
-  void notification.offsetWidth; // Trigger reflow
-  notification.style.animation = 'fadeIn 0.3s, fadeOut 0.5s 2.5s forwards';
+  notification.style.opacity = '0';
+  notification.style.transform = 'translateX(-50%) translateY(20px)';
+  
+  // Trigger reflow
+  void notification.offsetWidth;
+  
+  // Jalankan animasi masuk
+  notification.style.animation = 'fadeInUp 0.3s ease-out forwards';
+  
+  // Set timeout untuk animasi keluar
+  setTimeout(() => {
+    notification.style.animation = 'fadeOutDown 0.5s ease-out forwards';
+  }, 2500);
 }
 
 // Load data dari IndexedDB
@@ -436,7 +516,6 @@ async function loadFromDatabase() {
     // Load categories
     const loadedCategories = await loadFromIndexedDB(STORE_NAMES.CATEGORIES);
     if (loadedCategories && loadedCategories.length > 0) {
-      // Perubahan di sini: menambahkan sorting saat memuat kategori
       categories = loadedCategories.map(c => c.name).sort((a, b) => a.localeCompare(b));
       updateNavbarCategories();
     }
@@ -454,9 +533,8 @@ async function loadFromDatabase() {
         }
         data[product.category].push(product);
       });
-    } else {
-      initializeSampleData();
     }
+    // Hapus pemanggilan initializeSampleData() di sini
     
     // Load cart
     const loadedCart = await loadFromIndexedDB(STORE_NAMES.CART);
@@ -472,10 +550,14 @@ async function loadFromDatabase() {
     
     renderProducts();
     updateCartBadge();
-    showTab('stiker');
+    
+    // Tampilkan tab pertama jika ada kategori, jika tidak biarkan kosong
+    if (categories.length > 0) {
+      showTab(categories[0]);
+    }
   } catch (error) {
     console.error("Gagal memuat data dari database:", error);
-    initializeSampleData();
+    // Tidak perlu memanggil initializeSampleData() di sini
   }
 }
 
@@ -502,24 +584,15 @@ async function saveAllData() {
 // Initialize dengan data contoh jika kosong
 function initializeSampleData() {
   const placeholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABdElEQVR4nO3VMUoDQRCF4U9qDYZoDOKDrCS3TGUoATQX0AuRPIAiSBUOw3cZt30VLcqSCZMw/fD8JJGfzXzftvdfS+9/AgAAAAAAAAAAAAAAAAAAAPwNLDJoTNp4GMHDsYPuYB7rwCzHch0rPfDJ17K3BR/PvA0v0qk+yF4O8Qhva2TNeHsl6oLsG1cCl8icfD3Phdz69dz29l9dP3/xNx98MWd66Z8/XBzZ8Y2OYw3zoDu6OuEXAuA/hI/VJmfF0fvT+A12k5NVu2P82cuAVfUybDrtd1WHBe+Vc5Nozj3upON/dfZ9jnp6sB70J+XEGWZP5ELGLoVcNlr4vcFD6uj+Nglw5tNsHSf89qjXQH83IrAqfDwDsuDj++mvVbgHPh2gPc4w2Ht7q4QvH8xDqWJv0IjP+F1cOW+S46z1dCyBwj8Bi+NFfFQAAAAAAAAAAAAAAAAD8BvgB7Yq3e6DdOpLwAAAABJRU5ErkJggg==';
-  
+
+  // Hanya tambahkan kategori default jika benar-benar kosong
+  if (categories.length === 0) {
+    categories = ['stiker', 'poster', 'ganci', 'standee', 'penggaris'];
+  }
+
   categories.forEach(category => {
     if (!data[category]) data[category] = [];
     
-    if (data[category].length === 0) {
-      data[category].push({ 
-        name: `${capitalizeFirstLetter(category)} A`, 
-        image: placeholder, 
-        price: category === 'stiker' ? 2000 : 
-              category === 'poster' ? 10000 : 
-              category === 'ganci' ? 5000 : 
-              category === 'standee' ? 15000 : 3000,
-        stock: 10,
-        minStock: 5,
-        soldOut: false, 
-        category 
-      });
-    }
   });
   
   saveAllData();
@@ -531,25 +604,42 @@ function capitalizeFirstLetter(string) {
 
 // Pada fungsi showTab(), ubah selektor untuk navbar yang benar
 function showTab(tabName) {
-  // Sembunyikan semua tab content
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-  
-  // Hapus kelas active dari semua tombol kategori (kecuali tombol manage category)
-  document.querySelectorAll('.navbar button').forEach(btn => {
-    if (!btn.classList.contains('manage-category')) {
-      btn.classList.remove('active');
-      btn.classList.remove('active-category'); // Hapus class active-category
+  // Sembunyikan semua tab content dengan animasi
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    if (tab.classList.contains('active')) {
+      tab.style.opacity = '0';
+      tab.style.transform = 'translateY(10px)';
+      setTimeout(() => {
+        tab.classList.remove('active');
+      }, 300); // Sesuaikan dengan durasi animasi
     }
   });
   
-  // Tampilkan tab yang dipilih
-  document.getElementById(tabName).classList.add('active');
+  // Hapus kelas active dari semua tombol kategori
+  document.querySelectorAll('.navbar button').forEach(btn => {
+    if (!btn.classList.contains('manage-category')) {
+      btn.classList.remove('active');
+      btn.classList.remove('active-category');
+    }
+  });
+  
+  // Tampilkan tab yang dipilih dengan animasi
+  const activeTab = document.getElementById(tabName);
+  if (activeTab) {
+    setTimeout(() => {
+      activeTab.classList.add('active');
+      setTimeout(() => {
+        activeTab.style.opacity = '1';
+        activeTab.style.transform = 'translateY(0)';
+      }, 10);
+    }, 300);
+  }
   
   // Tambahkan kelas active-category ke tombol yang sesuai
   const activeButton = document.querySelector(`.navbar button[onclick="showTab('${tabName}')"]`);
   if (activeButton) {
     activeButton.classList.add('active');
-    activeButton.classList.add('active-category'); // Tambahkan class active-category
+    activeButton.classList.add('active-category');
   }
   
   // Simpan tab yang sedang aktif di localStorage
@@ -571,7 +661,10 @@ function formatRupiah(number) {
 }
 
 function renderProducts() {
-  categories.forEach(category => {
+  // Pastikan hanya render kategori yang valid
+  const validCategories = categories.filter(cat => cat && typeof cat === 'string');
+  
+  validCategories.forEach(category => {
     const container = document.getElementById(`${category}-list`);
     if (!container) return;
     
@@ -590,7 +683,12 @@ function renderProducts() {
       const isLowStock = item.stock <= item.minStock;
       const isOutOfStock = item.stock <= 0;
       
+      // Check if item is in cart
+      const cartItem = cart.find(c => c.name === item.name);
+      const cartQty = cartItem ? cartItem.qty : 0;
+      
       card.innerHTML = `
+        ${cartQty > 0 ? `<div class="product-badge">${cartQty}</div>` : ''}
         <strong>${item.name}</strong>
         <img src="${item.image}" class="product-img" alt="${item.name}" loading="lazy">
         
@@ -605,7 +703,7 @@ function renderProducts() {
         </div>
         <div class="quantity-controls">
           <button onclick="decreaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>−</button>
-          <input type="text" value="0" id="qty-${category}-${index}" readonly />
+          <input type="text" value="${cartQty}" id="qty-${category}-${index}" readonly />
           <button onclick="increaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>+</button>
         </div>
         <div class="button-group">
@@ -616,12 +714,6 @@ function renderProducts() {
           </button>
         </div>
       `;
-      
-      // Set nilai quantity dari cart jika ada
-      const cartItem = cart.find(c => c.name === item.name);
-      if (cartItem) {
-        card.querySelector(`#qty-${category}-${index}`).value = cartItem.qty;
-      }
       
       // Tambahkan event listener untuk gambar produk
       const img = card.querySelector('.product-img');
@@ -716,6 +808,7 @@ async function updateCart(category, index, qty) {
     
     await saveToIndexedDB(STORE_NAMES.CART, cart);
     updateCartBadge();
+    renderProducts(); // Render ulang untuk update badge
   } catch (error) {
     console.error('Error in updateCart:', error);
     showNotification('Gagal memperbarui keranjang');
@@ -848,7 +941,8 @@ function editProduct(category, index) {
   document.getElementById('editCategory').value = category;
   document.getElementById('editIndex').value = index;
   document.getElementById('editName').value = product.name;
-  document.getElementById('editPrice').value = product.price;
+  // Format harga dengan titik
+  document.getElementById('editPrice').value = formatRupiah(product.price).replace('Rp', '');
   document.getElementById('editStock').value = product.stock;
   document.getElementById('editMinStock').value = product.minStock;
   document.getElementById('editPreview').src = product.image;
@@ -873,7 +967,8 @@ async function saveEditedProduct(event) {
   const category = form.category.value;
   const index = parseInt(form.index.value);
   const name = form.name.value.trim();
-  const price = parseInt(form.price.value);
+  // Hapus titik sebelum konversi ke number
+  const price = parseInt(form.price.value.replace(/\./g, ''));
   const stock = parseInt(form.stock.value);
   const minStock = parseInt(form.minStock.value);
   const fileInput = document.getElementById('editImageFile');
@@ -996,18 +1091,39 @@ async function addProduct(event, category) {
   event.preventDefault();
   const form = event.target;
   const name = form.name.value.trim();
-  const price = parseInt(form.price.value);
+  // Hapus titik sebelum konversi ke number
+  const price = parseInt(form.price.value.replace(/\./g, ''));
   const stock = parseInt(form.stock.value);
   const minStock = parseInt(form.minStock.value);
   const fileInput = form.imageFile;
   
-  if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0 || !fileInput.files[0]) {
-    alert("Harap isi semua data dengan benar dan upload gambar!");
+  // Validasi lebih ketat
+  if (!name || name.length < 2) {
+    alert("Nama barang harus diisi (minimal 2 karakter)!");
     return;
   }
   
+  if (isNaN(price) || price < 100) {
+    alert("Harga harus diisi (minimal Rp100)!");
+    return;
+  }
+  
+  if (isNaN(stock) || stock < 0) {
+    alert("Stok harus diisi (tidak boleh negatif)!");
+    return;
+  }
+  
+  if (isNaN(minStock) || minStock < 0) {
+    alert("Stok minimum harus diisi (tidak boleh negatif)!");
+    return;
+  }
+  
+  if (!fileInput.files[0]) {
+    alert("Gambar produk wajib diupload!");
+    return;
+  }
+
   try {
-    // Kompres gambar sebelum menyimpan
     const compressedImage = await compressImage(fileInput.files[0]);
     
     const newProduct = { 
@@ -1020,55 +1136,26 @@ async function addProduct(event, category) {
       category 
     };
     
-    // Tambahkan ke data
     if (!data[category]) data[category] = [];
     data[category].push(newProduct);
     
-    // Simpan ke database
     await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
     
     form.reset();
-    form.querySelector('img.preview').style.display = 'none';
-    form.stock.value = 10; // Reset to default
-    form.minStock.value = 5; // Reset to default
+    const preview = form.querySelector('img.preview');
+    if (preview) {
+      preview.style.display = 'none';
+      preview.src = '';
+    }
     renderProducts();
-    showNotification(`Produk ditambahkan: ${name}`);
+    showNotification(`Produk "${name}" ditambahkan!`);
   } catch (error) {
-    console.error("Gagal mengkompres gambar:", error);
-    alert("Gagal mengkompres gambar. Silakan coba lagi.");
+    console.error("Gagal menambahkan produk:", error);
+    alert("Gagal menambahkan produk! " + error.message);
   }
 }
 
-// Ganti fungsi previewImage dengan ini
-function previewImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
 
-  // Validasi tipe file
-  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!validTypes.includes(file.type)) {
-    showNotification('Hanya file gambar (JPEG/PNG/WEBP) yang diizinkan!');
-    event.target.value = ''; // Reset input
-    return;
-  }
-
-  // Validasi ukuran file (max 5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    showNotification('Ukuran gambar terlalu besar! Maksimal 5MB.');
-    event.target.value = '';
-    return;
-  }
-
-  const preview = event.target.nextElementSibling; // Ambil elemen img berikutnya
-  const reader = new FileReader();
-  
-  reader.onload = function(e) {
-    preview.src = e.target.result;
-    preview.style.display = 'block';
-  };
-  
-  reader.readAsDataURL(file);
-}
 
 // Fungsi untuk memperbaiki orientasi gambar
 function fixImageOrientation(img, orientation) {
@@ -1110,12 +1197,16 @@ function toggleSales() {
   } else {
     renderSalesTable();
     salesDiv.style.display = 'block';
+    salesDiv.style.overflowY = 'auto'; // Pastikan overflow diaktifkan
     salesBtn.textContent = '✖️ Tutup Data Penjualan';
   }
 }
 
 function renderSalesTable() {
   const salesDiv = document.getElementById('salesData');
+  
+  // Atur tinggi salesDiv berdasarkan viewport
+  salesDiv.style.maxHeight = 'calc(100vh - 200px)'; // Sesuaikan dengan kebutuhan
   
   if (sales.length === 0) {
     salesDiv.innerHTML = '<div class="empty-state">Belum ada data penjualan</div>';
@@ -1281,46 +1372,16 @@ async function addNewCategory(event) {
   const categoriesToSave = categories.map(name => ({ name }));
   await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
   
-  // Buat tab content baru
-  const tabContents = document.querySelector('.tab-content.active').parentNode;
-  const newTabContent = document.createElement('div');
-  newTabContent.id = name;
-  newTabContent.className = 'tab-content';
-  newTabContent.innerHTML = `
-    <div class="product-list" id="${name}-list"></div>
-    <form class="add-form" onsubmit="addProduct(event, '${name}')">
-      <p>Nama Barang</p>
-      <input type="text" name="name" placeholder="Nama Barang" required />
-      <div class="image-input-container">
-        <div class="image-source-buttons">
-          <button type="button" class="image-source-btn" onclick="openCamera('${name}')">📷 Kamera</button>
-          <button type="button" class="image-source-btn" onclick="openGallery('${name}')">🖼️ Galeri</button>
-        </div>
-        <input type="file" id="imageInput-${name}" name="imageFile" accept="image/*" required 
-          onchange="previewImage(event, '${name}')" style="display: none">
-        <img id="imagePreview-${name}" class="preview" style="display: none"/>
-      </div>
-      <p>Harga</p>
-      <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
-      <p>Stok Barang</p>
-      <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
-      <p>Batas Stok Barang</p>
-      <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
-      <button type="submit">➕ Tambah Barang</button>
-    </form>
-  `;
-  tabContents.appendChild(newTabContent);
-  
-  // Hapus semua tombol kategori dan buat ulang dengan urutan yang benar
+  // Perbarui UI tanpa perlu refresh
   updateNavbarCategories();
+  renderCategoryList();
   
   nameInput.value = '';
   showNotification(`Jenis barang "${capitalizeFirstLetter(name)}" ditambahkan!`);
-  renderCategoryList();
+  closeCategoryModal();
   
   // Pindah ke tab baru yang dibuat
   showTab(name);
-  closeCategoryModal();
 }
 
 // Fungsi untuk menghapus kategori
@@ -1377,27 +1438,33 @@ async function deleteCategory(category, index) {
 // Fungsi untuk update navbar dengan kategori terbaru
 function updateNavbarCategories() {
   const navbar = document.querySelector('.navbar');
+  const tabContainer = document.getElementById('dynamic-tabs');
   
-  // Hapus semua tombol kategori (kecuali tombol manage category)
-  const buttons = navbar.querySelectorAll('button:not(.manage-category)');
-  buttons.forEach(button => button.remove());
+  // Kosongkan navbar dan tab container
+  navbar.innerHTML = '';
+  tabContainer.innerHTML = '';
   
-  // Tambahkan tombol kategori baru (sudah terurut)
-  categories.forEach(category => {
+  // Tambahkan tombol manage category
+  const manageBtn = document.createElement('button');
+  manageBtn.className = 'manage-category';
+  manageBtn.textContent = '➕ Jenis Barang';
+  manageBtn.onclick = showCategoryModal;
+  navbar.appendChild(manageBtn);
+  
+  // Tambahkan kategori yang valid
+  categories.filter(cat => cat && typeof cat === 'string').forEach(category => {
+    // Tambahkan tombol navbar
     const button = document.createElement('button');
     button.textContent = capitalizeFirstLetter(category);
     button.onclick = () => showTab(category);
-    navbar.insertBefore(button, document.querySelector('.navbar .manage-category'));
-  });
-  
-  // Tambahkan tab content untuk kategori baru yang belum ada
-  categories.forEach(category => {
+    navbar.insertBefore(button, manageBtn);
+    
+    // Buat tab content jika belum ada
     if (!document.getElementById(category)) {
-      const tabContents = document.querySelector('.tab-content.active').parentNode;
-      const newTabContent = document.createElement('div');
-      newTabContent.id = category;
-      newTabContent.className = 'tab-content';
-      newTabContent.innerHTML = `
+      const tabContent = document.createElement('div');
+      tabContent.id = category;
+      tabContent.className = 'tab-content';
+      tabContent.innerHTML = `
         <div class="product-list" id="${category}-list"></div>
         <form class="add-form" onsubmit="addProduct(event, '${category}')">
           <p>Nama Barang</p>
@@ -1412,24 +1479,22 @@ function updateNavbarCategories() {
             <img id="imagePreview-${category}" class="preview" style="display: none"/>
           </div>
           <p>Harga</p>
-          <input type="number" name="price" placeholder="Harga (Rp)" required min="0" />
-          <p>Stok Barang</p>
-          <input type="number" name="stock" placeholder="Stok Barang" required min="0" value="10" />
-          <p>Batas Stok Barang</p>
-          <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" value="5" />
+          <input type="number" name="price" placeholder="Harga (Rp)" required min="100" />
+          <p>Stok</p>
+          <input type="number" name="stock" placeholder="Stok Barang" required min="0" />
+          <p>Stok Minimum</p>
+          <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" />
           <button type="submit">➕ Tambah Barang</button>
         </form>
       `;
-      tabContents.appendChild(newTabContent);
+      tabContainer.appendChild(tabContent);
     }
   });
   
-  // Hapus tab content untuk kategori yang tidak ada lagi
-  document.querySelectorAll('.tab-content').forEach(tab => {
-    if (!categories.includes(tab.id) && tab.id !== 'categoryModal') {
-      tab.remove();
-    }
-  });
+  // Aktifkan tab pertama jika ada
+  if (categories.length > 0) {
+    showTab(categories[0]);
+  }
 }
 
 function filterProducts(searchTerm) {
@@ -1570,23 +1635,17 @@ async function resetAllData() {
   if (confirm("Apakah Anda yakin ingin mereset SEMUA data?\nIni akan menghapus semua produk, penjualan, dan keranjang belanja.")) {
     try {
       // Clear all data
-      data = {
-        stiker: [],
-        poster: [],
-        ganci: [],
-        standee: [],
-        penggaris: []
-      };
+      data = {};
       cart = [];
       sales = [];
-      categories = ['stiker', 'poster', 'ganci', 'standee', 'penggaris'];
+      categories = []; // Kosongkan kategori
       
       // Save empty data to IndexedDB
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
         saveToIndexedDB(STORE_NAMES.CART, cart),
         saveToIndexedDB(STORE_NAMES.SALES, sales),
-        saveToIndexedDB(STORE_NAMES.CATEGORIES, categories.map(name => ({ name })))
+        saveToIndexedDB(STORE_NAMES.CATEGORIES, []) // Simpan array kosong
       ]);
       
       // Reset UI
@@ -1594,7 +1653,6 @@ async function resetAllData() {
       updateCartBadge();
       renderCategoryList();
       updateNavbarCategories();
-      showTab('stiker');
       
       showNotification('Semua data telah direset!');
     } catch (error) {
@@ -1605,8 +1663,9 @@ async function resetAllData() {
 }
 
 // Fungsi untuk membuka kamera
-function openCamera(category) {
-  const input = document.getElementById(`imageInput-${category}`);
+function openCamera(context) {
+  const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
+  const input = document.getElementById(inputId);
   if (input) {
     input.removeAttribute('capture');
     input.setAttribute('capture', 'environment');
@@ -1614,26 +1673,35 @@ function openCamera(category) {
   }
 }
 
-function openGallery(category) {
-  const input = document.getElementById(`imageInput-${category}`);
+function openGallery(context) {
+  const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
+  const input = document.getElementById(inputId);
   if (input) {
     input.removeAttribute('capture');
     input.click();
   }
 }
 
-function previewImage(event, category) {
+// Ganti fungsi previewImage dengan ini
+function previewImage(event, context) {
   const file = event.target.files[0];
   if (!file) return;
 
   // Validasi format file
-  const validTypes = ['image/jpeg', 'image/png'];
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!validTypes.includes(file.type)) {
-    showNotification('Hanya format JPEG/PNG yang diizinkan!');
+    showNotification('Hanya format JPEG/PNG/WEBP yang diizinkan!');
     return;
   }
 
-  const preview = document.getElementById(`imagePreview-${category}`);
+  // Validasi ukuran file (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    showNotification('Ukuran gambar terlalu besar! Maksimal 5MB.');
+    return;
+  }
+
+  const previewId = context === 'edit' ? 'editPreview' : `imagePreview-${context}`;
+  const preview = document.getElementById(previewId);
   const reader = new FileReader();
   
   reader.onload = function(e) {
@@ -1652,7 +1720,249 @@ function previewImage(event, category) {
   reader.readAsDataURL(file);
 }
 
+// Tambahkan fungsi untuk membuka kamera/galeri
+function openCamera(context) {
+  const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
+  const input = document.getElementById(inputId);
+  if (input) {
+    input.removeAttribute('capture');
+    input.setAttribute('capture', 'environment');
+    input.click();
+  }
+}
+
+function openGallery(context) {
+  const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
+  const input = document.getElementById(inputId);
+  if (input) {
+    input.removeAttribute('capture');
+    input.click();
+  }
+}
+
 function showCategoryModal() {
   renderCategoryList();
   document.getElementById('categoryModal').style.display = 'flex';
+}
+
+
+// Add to your script.js
+const themes = [
+  { name: 'default', label: '🙂' },
+  { name: 'dark-mode', label: '🕷' }
+];
+
+let currentThemeIndex = 0;
+
+function cycleTheme() {
+  const themeToggle = document.getElementById('themeToggle');
+  
+  // Tambahkan class animating
+  themeToggle.classList.add('animating');
+  
+  // Hapus semua class tema
+  document.body.classList.remove('dark-mode');
+  
+  // Dapatkan tema berikutnya
+  currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+  const newTheme = themes[currentThemeIndex].name;
+  
+  // Terapkan tema baru jika bukan default
+  if (newTheme !== 'default') {
+    document.body.classList.add(newTheme);
+  }
+  
+  // Update tombol toggle setelah animasi selesai
+  setTimeout(() => {
+    themeToggle.textContent = themes[currentThemeIndex].label;
+    themeToggle.classList.remove('animating');
+    
+    // Simpan ke localStorage
+    localStorage.setItem('currentTheme', newTheme);
+  }, 500); // Sesuaikan dengan durasi animasi
+}
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('currentTheme') || 'default';
+  
+  // Hapus semua class tema
+  document.body.classList.remove('dark-mode');
+  
+  // Terapkan tema yang disimpan
+  if (savedTheme !== 'default') {
+    document.body.classList.add(savedTheme);
+  }
+  
+  // Temukan index tema saat ini
+  const index = themes.findIndex(t => t.name === savedTheme);
+  if (index !== -1) {
+    currentThemeIndex = index;
+    document.getElementById('themeToggle').textContent = themes[index].label;
+  }
+}
+
+// Initialize theme from localStorage
+function initTheme() {
+  const savedTheme = localStorage.getItem('currentTheme') || 'default';
+  
+  // Hapus semua class tema
+  document.body.classList.remove('dark-mode', 'ocean-theme', 'forest-theme', 'sunset-theme');
+  
+  // Terapkan tema yang disimpan
+  if (savedTheme !== 'default') {
+    document.body.classList.add(savedTheme);
+  }
+  
+  // Temukan index tema saat ini
+  const index = themes.findIndex(t => t.name === savedTheme);
+  if (index !== -1) {
+    currentThemeIndex = index;
+    document.getElementById('themeToggle').textContent = themes[index].label;
+  }
+}
+
+// Update your event listener
+document.getElementById('themeToggle').addEventListener('click', cycleTheme);
+
+// Call initTheme when DOM loads
+document.addEventListener('DOMContentLoaded', initTheme);
+
+
+// Fungsi untuk menutup modal selamat datang
+function closeWelcomeModal() {
+  document.getElementById('welcomeModal').style.display = 'none';
+  // Set flag di localStorage bahwa pengguna sudah melihat pesan selamat datang
+  localStorage.setItem('hasSeenWelcome', 'true');
+}
+
+// Fungsi untuk mengecek dan menampilkan modal selamat datang
+function checkWelcomeMessage() {
+  // Cek di localStorage apakah pengguna sudah pernah melihat pesan ini
+  const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+  
+  if (!hasSeenWelcome) {
+    // Tampilkan modal hanya jika belum pernah dilihat
+    document.getElementById('welcomeModal').style.display = 'flex';
+  }
+}
+
+// Panggil fungsi checkWelcomeMessage saat DOM selesai dimuat
+document.addEventListener('DOMContentLoaded', function() {
+  loadFromDatabase();
+  adjustContentMargin();
+  initTheme();
+  
+  // Event listeners
+  document.getElementById('themeToggle').addEventListener('click', cycleTheme);
+  document.getElementById('cartButton').addEventListener('click', showCartModal);
+  
+  // Cek dan tampilkan pesan selamat datang
+  checkWelcomeMessage();
+  
+  // Load active tab
+  const savedTab = localStorage.getItem('activeTab');
+  if (savedTab && document.getElementById(savedTab)) {
+    showTab(savedTab);
+  }
+});
+
+
+// Fungsi untuk menutup modal ketika mengklik di luar
+function setupModalCloseOnOutsideClick() {
+  const modals = document.querySelectorAll('.modal-overlay');
+  
+  modals.forEach(modal => {
+    modal.addEventListener('click', function() {
+      const modalId = this.id;
+      if (modalId === 'editModal') {
+        closeEditModal();
+      } else if (modalId === 'categoryModal') {
+        closeCategoryModal();
+      } else if (modalId === 'backupModal') {
+        closeBackupModal();
+      } else if (modalId === 'welcomeModal') {
+        closeWelcomeModal();
+      }
+      else if (modalId === 'dashboardModal') {
+  closeDashboard();
+}
+    });
+  });
+}
+
+// Panggil fungsi ini saat DOM selesai dimuat
+document.addEventListener('DOMContentLoaded', function() {
+  setupModalCloseOnOutsideClick();
+  // ... kode lainnya yang sudah ada
+});
+
+function showEditModal() {
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+function showCategoryModal() {
+  renderCategoryList();
+  document.getElementById('categoryModal').style.display = 'flex';
+}
+
+function closeCategoryModal() {
+  document.getElementById('categoryModal').style.display = 'none';
+}
+
+
+// Fungsi untuk menghitung jumlah item per kategori di keranjang
+function countItemsPerCategory() {
+  const categoryCounts = {};
+  
+  cart.forEach(item => {
+    if (!categoryCounts[item.category]) {
+      categoryCounts[item.category] = 0;
+    }
+    categoryCounts[item.category] += item.qty;
+  });
+  
+  return categoryCounts;
+}
+
+// Fungsi untuk update badge kategori
+function updateCategoryBadges() {
+  const categoryCounts = countItemsPerCategory();
+  
+  document.querySelectorAll('.navbar button').forEach(button => {
+    if (!button.classList.contains('manage-category')) {
+      const category = button.getAttribute('onclick').match(/'([^']+)'/)[1];
+      const count = categoryCounts[category] || 0;
+      
+      // Hapus badge lama jika ada
+      const existingBadge = button.querySelector('.category-badge');
+      if (existingBadge) {
+        existingBadge.remove();
+      }
+      
+      // Tambahkan badge baru jika ada item
+      if (count > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'category-badge';
+        badge.textContent = count;
+        button.appendChild(badge);
+      }
+    }
+  });
+}
+
+
+// Fungsi untuk memformat input harga dengan titik
+function formatRupiahInput(input) {
+  // Hapus semua karakter non-digit
+  let value = input.value.replace(/\D/g, '');
+  
+  // Format dengan titik setiap 3 digit dari belakang
+  value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  
+  // Update nilai input
+  input.value = value;
 }
