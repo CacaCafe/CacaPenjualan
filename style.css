@@ -10,6 +10,36 @@ input[type="file"]::file-selector-button {
       transition: background-color 200ms;
       color: darkblue;
     }
+:root {
+  --primary-color: #34495e;
+  --secondary-color: #2c3e50;
+  --accent-color: #2980b9;
+  --text-color: #333;
+  --background-color: #ffffff;
+  --card-bg: white;
+  --border-color: #ddd;
+  --success-color: #27ae60;
+  --danger-color: #e74c3c;
+  --warning-color: #e67e22;
+  --grid-color: rgb(226, 226, 226);
+}
+
+/* Dark theme */
+.dark-mode {
+  --primary-color: #1a1a1a;
+  --secondary-color: #121212;
+  --accent-color: #1a5276;
+  --text-color: #f0f0f0;
+  --background-color: #222;
+  --card-bg: #1e1e1e;
+  --border-color: #555;
+  --success-color: #219653;
+  --danger-color: #c0392b;
+  --warning-color: #d35400;
+  --grid-color: rgb(0, 0, 0);
+}
+
+
 
 
 
@@ -20,7 +50,7 @@ input[type="file"]::file-selector-button {
   left: -300px;
   width: 280px;
   height: 100%;
-  background: #34495e;
+  background: var(--primary-color);
   z-index: 1001;
   transition: all 0.3s ease;
   overflow-y: auto;
@@ -37,7 +67,7 @@ input[type="file"]::file-selector-button {
 
 .sidebar-header {
   padding: 20px;
-  background: #2c3e50;
+  background: var(--secondary-color);
   color: white;
   display: flex;
   justify-content: space-between;
@@ -145,19 +175,20 @@ input[type="file"]::file-selector-button {
 /* Notification Popup */
 .notification {
   position: fixed;
-  bottom: 90px;
-  right: 20px;
+  bottom: 80px; /* Naikkan sedikit di atas tombol keranjang */
+  left: 50%;
+  transform: translateX(-50%);
   background-color: #27ae60;
   color: white;
-  padding: 10px 15px;
-  border-radius: 5px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  z-index: 150;
-  display: flex;
-  align-items: center;
-  max-width: 250px; /* Lebar maksimum */
-  width: auto; /* Lebar menyesuaikan konten */
-  animation: fadeIn 0.3s, fadeOut 0.5s 2.5s forwards;
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1002;
+  display: none;
+  max-width: 80%;
+  text-align: center;
+  white-space: nowrap;
+  animation: fadeInUp 0.3s ease-out forwards;
 }
 
 /* Cart Preview Modal */
@@ -166,7 +197,7 @@ input[type="file"]::file-selector-button {
   position: fixed;
   bottom: 90px;
   right: 20px;
-  width: 300px;
+  width: 350px;
   max-height: 400px;
   background: white;
   border-radius: 10px;
@@ -174,6 +205,23 @@ input[type="file"]::file-selector-button {
   z-index: 200;
   flex-direction: column;
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.cart-modal.open {
+  display: flex;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .dark-mode .cart-modal {
@@ -276,17 +324,25 @@ input[type="file"]::file-selector-button {
       padding: 0;
     }
     body {
+      transition: background-color 0.5s ease, color 0.3s ease;
       margin: 0;
       padding: 0;
       font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
       color: #333;
       overflow-x: hidden;
+      background-size: 40px 40px;
+      background-color: var(--background-color);
+  color: var(--text-color);
+
+
     }
 
     body.dark-mode {
       background-color: #222;
       color: #f0f0f0;
+      background-image:
+      linear-gradient(to right, rgb(0, 0, 0) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(0, 0, 0) 1px, transparent 1px);
     }
 
     .button-group {
@@ -313,12 +369,11 @@ input[type="file"]::file-selector-button {
       top: 70px; /* Sesuaikan dengan tinggi menu-bar */
       left: 0;
       right: 0;
-      background-color: #fff;
+      background-color: var(--card-bg);
       display: flex;
       overflow-x: auto;
       white-space: nowrap;
       z-index: 999;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       padding: 10px 0;
     }
     body.dark-mode .navbar {
@@ -366,13 +421,17 @@ input[type="file"]::file-selector-button {
     }
     /* Main Navbar (for categories) */
     
-.navbar button.active-category {
-  background-color: #9b59b6 !important;
-  color: white !important;
-}
+  .navbar button.active-category {
+    background-color: #9b59b6 !important;
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.1s ease;
+  }
 
 .dark-mode .navbar button.active-category {
   background-color: #7d3c98 !important;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
 .dark-mode .main-navbar {
@@ -393,7 +452,7 @@ input[type="file"]::file-selector-button {
   font-size: 14px;
   margin: 0 5px;
   flex: 0 0 auto;
-  transition: all 0.3s;
+  transition: all 0.1s;
 }
 
 .dark-mode .main-navbar button {
@@ -432,7 +491,7 @@ input[type="file"]::file-selector-button {
   top: 0;
   left: 0;
   right: 0;
-  background-color: #34495e;
+  background-color: var(--primary-color);
   color: white;
   padding: 19px 20px;
   display: flex;
@@ -478,37 +537,63 @@ input[type="file"]::file-selector-button {
   white-space: nowrap;
 }
 
-    /* Theme Toggle Button */
-    .theme-toggle {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #2c3e50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-    }
-    .dark-mode .theme-toggle {
-      background: #333;
-    }
+/* Theme Toggle Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.theme-toggle {
+  transition: all 0.3s ease;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #2c3e50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.dark-mode .theme-toggle {
+  background: #333;
+}
+
+.theme-toggle.animating {
+  animation: spin 0.5s ease-in-out, pulse 0.5s ease-in-out;
+}
+
+/* Tambahkan efek hover yang lebih halus */
+.theme-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+.dark-mode .theme-toggle:hover {
+  box-shadow: 0 0 10px rgba(255,255,255,0.1);
+}
 
     /* Sales Section */
  .sales-section {
-      padding: 5px;
-      background: white;
-      margin: 1px;
-      border-radius: 10px;
-      box-shadow: 0 2px 1px rgba(0,0,0,0.1);
-      margin-top: 10px; /* Ditambah untuk memberi jarak dari navbar */
-      color: #333;
+      position: relative;
+      height: auto;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
     .dark-mode .sales-section {
       background: #1e1e1e;
@@ -542,9 +627,11 @@ input[type="file"]::file-selector-button {
     #salesData {
       max-width: 100%;
       overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow-y: auto; /* Tambahkan ini untuk scroll vertikal */
+      max-height: 60vh; /* Batasi tinggi maksimum */
       display: none;
-    }
+      -webkit-overflow-scrolling: touch;
+  }
     #salesData table {
       width: 100%;
       border-collapse: collapse;
@@ -1059,6 +1146,21 @@ input[type="file"]::file-selector-button {
       justify-content: center;
       align-items: center;
     }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+
     .modal-content {
       background-color: #fff;
       padding: 20px;
@@ -1181,7 +1283,7 @@ input[type="file"]::file-selector-button {
   cursor: pointer;
   width: 100%;
   margin-top: 15px;
-  transition: all 0.3s ease;
+  transition: all 0.1s ease;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   display: flex;
   align-items: center;
@@ -1378,21 +1480,35 @@ input[type="file"]::file-selector-button {
 
     .dark-mode .notification {
       background-color: #219653;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes fadeInUp {
+  from { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; visibility: hidden; }
+@keyframes fadeOutDown {
+  from { 
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+    visibility: hidden;
+  }
 }
 
 .notification {
   /* ... properti lainnya ... */
-  animation: fadeIn 0.3s, fadeOut 0.5s 2.5s forwards;
+  animation: fadeIn 0.1s, fadeOut 0.5s 2.5s forwards;
 }
 
     /* Empty States */
@@ -1497,3 +1613,194 @@ input[type="file"]::file-selector-button {
   z-index: 1002;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
+
+/* Welcome Modal Styles */
+.welcome-message {
+  padding: 15px 0;
+  line-height: 1.6;
+}
+
+.welcome-message ul {
+  margin: 10px 0 10px 20px;
+}
+
+.welcome-close-btn {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 15px;
+  width: 100%;
+  transition: background-color 0.3s;
+}
+
+.welcome-close-btn:hover {
+  background-color: #2ecc71;
+}
+
+.dark-mode .welcome-close-btn {
+  background-color: #219653;
+}
+
+.dark-mode .welcome-close-btn:hover {
+  background-color: #27ae60;
+}
+
+
+/* Image Source Buttons */
+.image-input-container {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.image-source-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.image-source-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: #3498db;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+  transition: background-color 0.3s;
+}
+
+.image-source-btn:hover {
+  background: #2980b9;
+}
+
+.image-source-btn:last-child {
+  background: #2ecc71;
+}
+
+.image-source-btn:last-child:hover {
+  background: #27ae60;
+}
+
+.preview {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  margin: 0 auto;
+  background-color: #f9f9f9;
+}
+
+.dark-mode .preview {
+  border-color: #555;
+  background-color: #333;
+}
+
+/* Animasi untuk perpindahan tab */
+.tab-content {
+  animation: fadeIn 0.1s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animasi untuk tombol kategori aktif */
+.navbar button.active {
+  transition: all 0.1s ease;
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.dark-mode .navbar button.active {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Tambahkan di bagian atas file style.css */
+.product-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #e74c3c;
+  color: white;
+  border-radius: 30%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: bold;
+  z-index: 1;
+}
+
+.dark-mode .product-badge {
+  background-color: #c0392b;
+}
+
+.product-card {
+  position: relative; /* Tambahkan ini untuk positioning badge */
+}
+
+
+/* Payment Options */
+.payment-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.payment-option {
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.3s;
+}
+
+.payment-option:hover {
+  background: #2980b9;
+}
+
+.dark-mode .payment-option {
+  background: #2980b9;
+}
+
+.dark-mode .payment-option:hover {
+  background: #2472a4;
+}
+
+.payment-summary {
+  margin-top: 15px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 5px;
+  display: none;
+}
+
+.dark-mode .payment-summary {
+  background: #333;
+}
+
+.payment-summary div {
+  margin: 5px 0;
+}
+
