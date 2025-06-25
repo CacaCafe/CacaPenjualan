@@ -43,7 +43,12 @@
   <!-- Menu Bar -->
   <div class="menu-bar">
     <button class="menu-button" id="menuButton" onclick="toggleSidebar()">☰</button>
-    <input type="text" id="searchInput" placeholder="Cari barang...">
+    <div class="search-container">
+  <span class="search-icon">🔍</span>
+  
+
+  <input type="text" id="searchInput" placeholder="Cari barang...">
+</div>
     <button class="theme-toggle" id="themeToggle">🌙</button>
   </div>
 
@@ -51,11 +56,12 @@
   <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
 </div>
 
+<div></div>
   <div class="sales-section">
     <button id="salesTab" onclick="toggleSales()">📊 Lihat Data Penjualan</button>
     <div id="salesData"></div>
   </div>
-
+</div>
   <!-- Cart Preview Modal -->
   <div id="cartModal" class="cart-modal">
     <div class="cart-modal-header">
