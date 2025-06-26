@@ -1,3 +1,8 @@
+
+
+
+
+
 function adjustContentMargin() {
   const menuBarHeight = document.querySelector('.menu-bar').offsetHeight;
   const navbarHeight = document.querySelector('.navbar').offsetHeight;
@@ -659,19 +664,23 @@ function renderProducts() {
       const cartItem = cart.find(c => c.name === item.name);
       const cartQty = cartItem ? cartItem.qty : 0;
       
-      card.innerHTML = `
-        ${cartQty > 0 ? `<div class="product-badge">${cartQty}</div>` : ''}
-        <strong>${item.name}</strong>
+    card.innerHTML = `
+      ${cartQty > 0 ? `<div class="product-badge">${cartQty}</div>` : ''}
+      <div class="product-img-container">
         <img src="${item.image}" class="product-img" alt="${item.name}" loading="lazy">
-        
-        <strong>Rp${formatRupiah(item.price)}</strong>
-        <div class="stock-info">
-          <span class="stock-label">Stok:</span>
-          <span class="stock-value ${isLowStock ? 'low-stock' : ''}">${item.stock}</span>
-        </div>
-        <div class="stock-info">
-          <span class="stock-label">Min. Stok:</span>
-          <span class="stock-value">${item.minStock}</span>
+      </div>
+      <div class="product-info">
+        <div>
+          <div class="product-name">${item.name}</div>
+          <div class="product-price">Rp${formatRupiah(item.price)}</div>
+          <div class="stock-info-container">
+            <div class="stock-info">
+              <span class="stock-label">Stok:
+              <span class="stock-value ${isLowStock ? 'low-stock' : ''}">${item.stock}</span></span>
+            </div>
+            <div class="stock-info">
+            </div>
+          </div>
         </div>
         <div class="quantity-controls">
           <button onclick="decreaseQuantity('${category}', ${index})" ${isOutOfStock || item.soldOut ? 'disabled' : ''}>−</button>
@@ -685,7 +694,8 @@ function renderProducts() {
             ${item.soldOut ? '🛑' : '⚠️'}
           </button>
         </div>
-      `;
+      </div>
+    `;
       
       // Tambahkan event listener untuk gambar produk
       const img = card.querySelector('.product-img');
