@@ -7,6 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Form Penjualan Barang</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,7 +22,6 @@
   <div class="sidebar-content">
     <ul class="sidebar-menu">
       <li><a href="#" onclick="closeSidebar()">🏠 Beranda</a></li>
-      <li><a href="#" onclick="showSalesReport(); closeSidebar()">📊 Laporan Penjualan</a></li>
       <li>
         <a href="#" onclick="toggleBackupMenu(event)">💾 Backup & Restore ▼</a>
         <ul class="submenu" id="backupSubmenu" style="display: none;">
@@ -30,8 +30,12 @@
           <li><a href="#" onclick="resetAllData()">🔄 Reset Semua Data</a></li>
         </ul>
       </li>
+      <li><a href="#" onclick="showDashboard(); closeSidebar()">📊 Dashboard</a></li>
       <li><a href="#" onclick="showHelp(); closeSidebar()">❕ Info</a></li>
+      
     </ul>
+    
+    
   </div>
 </div>
 
@@ -40,27 +44,26 @@
 
   <div class="storage-warning" id="storageWarning"></div>
 
-  <!-- Menu Bar -->
-  <div class="menu-bar">
-    <button class="menu-button" id="menuButton" onclick="toggleSidebar()">☰</button>
-    <div class="search-container">
-  <span class="search-icon">🔍</span>
+<!-- Menu Bar -->
+<div class="menu-bar">
+  <button class="menu-button" id="menuButton" onclick="toggleSidebar()">☰</button>
   
-
-  <input type="text" id="searchInput" placeholder="Cari barang...">
-</div>
-    <button class="theme-toggle" id="themeToggle">🌙</button>
+  <div class="search-container">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Cari barang...">
   </div>
+  
+  <div class="menu-controls">
+    <button id="fullscreenButton" class="control-button">⛶</button>
+  </div>
+</div>
 
 <div class="navbar main-navbar"> <!-- Tambahkan class main-navbar -->
   <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
 </div>
 
 <div></div>
-  <div class="sales-section">
-    <button id="salesTab" onclick="toggleSales()">📊 Lihat Data Penjualan</button>
-    <div id="salesData"></div>
-  </div>
+
 </div>
   <!-- Cart Preview Modal -->
   <div id="cartModal" class="cart-modal">
@@ -72,7 +75,7 @@
       <!-- Daftar item akan dimuat di sini -->
     </div>
     <div class="cart-modal-footer">
-      <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
+      <div class="cart-total ">Total: Rp<span id="cartTotal">0</span></div>
       <button onclick="confirmCheckout()" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">Checkout</button>
     </div>
   </div>
@@ -132,6 +135,44 @@
   </div>
 </div>
 
+
+<!-- Dashboard Modal -->
+<div id="dashboardModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="close-modal" onclick="closeDashboard()">×</button>
+    <h3>Dashboard Penjualan</h3>
+    <div class="dashboard-tabs">
+      <button class="dashboard-tab active" onclick="showDashboardTab('salesReport')">Laporan Penjualan</button>
+      <button class="dashboard-tab" onclick="showDashboardTab('topProducts')">Produk Terlaris</button>
+      <!-- Hapus baris ini: <button class="dashboard-tab" onclick="showDashboardTab('salesChart')">Grafik Penjualan</button> -->
+    </div>
+    
+    <div id="topProductsTab" class="dashboard-tab-content">
+      <h4>Produk Terlaris</h4>
+      <div class="top-products-list" id="topProductsList"></div>
+    </div>
+    
+    <!-- Hapus seluruh div ini:
+    <div id="salesChartTab" class="dashboard-tab-content">
+      <h4>Grafik Penjualan</h4>
+      <canvas id="salesChartCanvas"></canvas>
+      <div class="chart-options">
+        <select id="chartTypeSelect" onchange="updateSalesChart()">
+          <option value="daily">Harian</option>
+          <option value="weekly">Mingguan</option>
+          <option value="monthly">Bulanan</option>
+        </select>
+      </div>
+    </div>
+    -->
+    
+    <div id="salesReportTab" class="dashboard-tab-content active">
+      <h4>Laporan Penjualan</h4>
+      <div id="salesData"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Backup & Restore Modal -->
 <div id="backupModal" class="modal">
   <div class="modal-content" onclick="event.stopPropagation()">
@@ -165,10 +206,10 @@
 </div>
 
   <!-- Floating Cart Button -->
-  <button id="cartButton">
-    🛒
-    <span class="badge" id="cartBadge">0</span>
-  </button>
+<button id="cartButton">
+  🛒
+  <span class="badge" id="cartBadge">0</span>
+</button>
 
   <!-- Notification Popup -->
   <div id="notification" class="notification" style="display: none;"></div>
@@ -179,21 +220,36 @@
 <!-- Welcome Modal -->
 <div id="welcomeModal" class="modal">
   <div class="modal-content" onclick="event.stopPropagation()">
-    <h3>Selamat Datang di Aplikasi Penjualan Barang</h3>
+    <h3>Terima kasih telah mencoba aplikasi penjualan Caca!</h3>
     <div class="welcome-message">
-      <p>Terima kasih telah menggunakan aplikasi ini!</p>
-      <p>Aplikasi ini membantu Anda mengelola:</p>
+      <p>Aplikasi ini masih tahap beta</p>
+      <p>Jika teman2 ingin masukkan terhadap aplikasi ini</p>
+      <p>silahkan masuk kesini~</p>
       <ul>
-        <li>Daftar produk dan kategori</li>
-        <li>Transaksi penjualan</li>
-        <li>Laporan penjualan</li>
-      </ul>
-      <p>Selamat menggunakan!</p>
+        <button class="action-btn"> 
+        <a href="https://forms.gle/ds821SSuEtHaniqi6"> LINK FORM</a></button>
     </div>
     <button onclick="closeWelcomeModal()" class="welcome-close-btn">Mengerti</button>
+
+
+
+
   </div>
 </div>
 
-
+<!-- Checkout Confirmation Modal -->
+<div id="checkoutModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="close-modal" onclick="closeCheckoutModal()">×</button>
+    <h3>Konfirmasi Checkout</h3>
+    <div id="checkoutSummary">
+      <!-- Ringkasan belanja akan dimuat di sini -->
+    </div>
+    <div class="modal-actions">
+      <button onclick="processCheckout()" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">Konfirmasi</button>
+      <button onclick="closeCheckoutModal()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Batal</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
