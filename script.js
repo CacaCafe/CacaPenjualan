@@ -36,9 +36,12 @@ function showSettings() {
   alert("Fitur pengaturan akan ditambahkan di versi berikutnya");
 }
 
+// START: Perubahan pada showBackupRestore
 function showBackupRestore() {
   document.getElementById('backupModal').style.display = 'flex';
+  document.body.classList.add('modal-open'); // Tambahkan ini untuk mencegah scroll body
 }
+// END: Perubahan pada showBackupRestore
 
 
 function showHelp() {
@@ -2713,4 +2716,3 @@ function closeCheckoutModal() {
   document.getElementById('checkoutModal').style.display = 'none';
   document.body.classList.remove('modal-open'); // Pastikan ini dihapus
 }
-
