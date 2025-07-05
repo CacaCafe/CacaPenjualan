@@ -2741,3 +2741,189 @@ function closeCheckoutModal() {
   document.getElementById('checkoutModal').style.display = 'none';
   document.body.classList.remove('modal-open'); // Pastikan ini dihapus
 }
+
+
+// script.js
+
+// ... (kode JavaScript yang sudah ada) ...
+
+// Variabel global untuk drag and drop
+let draggedItem = null;
+let placeholder = null;
+
+// Fungsi untuk menginisialisasi drag and drop pada tombol kategori
+function setupCategoryDragAndDrop() {
+  const navbarButtons = document.querySelectorAll('.navbar button:not(.manage-category)');
+
+  navbarButtons.forEach(button => {
+    button.setAttribute('draggable', 'true');
+    button.classList.add('draggable'); // Tambahkan kelas draggable
+
+    button.addEventListener('dragstart', handleDragStart);
+    button.addEventListener('dragover', handleDragOver);
+    button.addEventListener('dragleave', handleDragLeave);
+    button.addEventListener('drop', handleDrop);
+    button.addEventListener('dragend', handleDragEnd);
+  });
+}
+
+function handleDragStart(e) {
+  draggedItem = this;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML); // Data yang ditransfer (tidak terlalu penting untuk reordering)
+
+  // Tambahkan kelas dragging untuk visual feedback
+  setTimeout(() => {
+    this.classList.add('dragging');
+  }, 0);
+
+  // Buat placeholder
+  placeholder = document.createElement('div');
+  placeholder.classList.add('drag-placeholder');
+  this.parentNode.insertBefore(placeholder, this.nextSibling); // Masukkan placeholder setelah item yang di-drag
+}
+
+function handleDragOver(e) {
+  e.preventDefault(); // Penting untuk mengizinkan drop
+  e.dataTransfer.dropEffect = 'move';
+
+  if (this === draggedItem || this.classList.contains('manage-category')) {
+    return; // Jangan lakukan apa-apa jika di atas item yang sama atau tombol manage category
+  }
+
+  // Tentukan posisi placeholder
+  const rect = this.getBoundingClientRect();
+  const isBefore = e.clientX < rect.left + rect.width / 2; // Cek apakah kursor di paruh kiri elemen
+
+  if (isBefore && this.previousSibling !== placeholder) {
+    this.parentNode.insertBefore(placeholder, this);
+  } else if (!isBefore && this.nextSibling !== placeholder) {
+    this.parentNode.insertBefore(placeholder, this.nextSibling);
+  }
+}
+
+function handleDragLeave() {
+  // Tidak perlu melakukan apa-apa di sini, karena placeholder akan diatur di dragover
+}
+
+async function handleDrop(e) {
+  e.preventDefault();
+
+  if (this === draggedItem || this.classList.contains('manage-category')) {
+    return;
+  }
+
+  // Dapatkan nama kategori dari item yang di-drag dan item target
+  const draggedCategoryName = draggedItem.textContent.trim().toLowerCase();
+  const targetCategoryName = this.textContent.trim().toLowerCase();
+
+  // Temukan indeks kategori di array global `categories`
+  const oldIndex = categories.indexOf(draggedCategoryName);
+  const newIndex = categories.indexOf(targetCategoryName);
+
+  if (oldIndex > -1 && newIndex > -1) {
+    // Hapus item dari posisi lama
+    const [movedCategory] = categories.splice(oldIndex, 1);
+
+    // Masukkan kembali item ke posisi baru
+    categories.splice(newIndex, 0, movedCategory);
+
+    // Simpan urutan kategori yang baru ke IndexedDB
+    const categoriesToSave = categories.map(name => ({ name }));
+    await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
+
+    // Perbarui UI navbar
+    updateNavbarCategories();
+    showNotification('Urutan jenis barang berhasil diubah!');
+  }
+}
+
+function handleDragEnd() {
+  // Hapus kelas dragging
+  this.classList.remove('dragging');
+
+  // Hapus placeholder jika ada
+  if (placeholder && placeholder.parentNode) {
+    placeholder.parentNode.removeChild(placeholder);
+  }
+
+  draggedItem = null;
+  placeholder = null;
+}
+
+// Modifikasi fungsi updateNavbarCategories untuk memanggil setupCategoryDragAndDrop
+function updateNavbarCategories() {
+  const navbar = document.querySelector('.navbar');
+  const tabContainer = document.getElementById('dynamic-tabs');
+
+  // Kosongkan navbar dan tab container
+  navbar.innerHTML = '';
+  tabContainer.innerHTML = '';
+
+  // Tambahkan tombol manage category
+  const manageBtn = document.createElement('button');
+  manageBtn.className = 'manage-category';
+  manageBtn.textContent = '➕ Jenis Barang';
+  manageBtn.onclick = showCategoryModal;
+  navbar.appendChild(manageBtn);
+
+  // Tambahkan kategori yang valid
+  categories.filter(cat => cat && typeof cat === 'string').forEach(category => {
+    // Tambahkan tombol navbar
+    const button = document.createElement('button');
+    button.textContent = capitalizeFirstLetter(category);
+    // Pastikan onclick memanggil showTab dengan benar
+    button.onclick = () => showTab(category);
+    navbar.insertBefore(button, manageBtn);
+
+    // Buat tab content jika belum ada
+    if (!document.getElementById(category)) {
+      const tabContent = document.createElement('div');
+      tabContent.id = category;
+      tabContent.className = 'tab-content';
+      tabContent.innerHTML = `
+        <div class="product-list" id="${category}-list"></div>
+        <form class="add-form" onsubmit="addProduct(event, '${category}')">
+          <b>Tambah barang</b>
+          <p>Nama Barang</p>
+          <input type="text" name="name" placeholder="Nama Barang" required />
+          <div class="image-input-container">
+            <div class="image-source-buttons">
+              <button type="button" class="image-source-btn" onclick="openCamera('${category}')">📷 Kamera</button>
+              <button type="button" class="image-source-btn" onclick="openGallery('${category}')">🖼️ Galeri</button>
+            </div>
+            <input type="file" id="imageInput-${category}" name="imageFile" accept="image/*" required
+              onchange="previewImage(event, '${category}')" style="display: none">
+            <img id="imagePreview-${category}" class="preview" style="display: none"/>
+          </div>
+          <p>Harga</p>
+          <input type="text" name="price" placeholder="Harga (Rp)" required min="100" />
+          <p>Stok</p>
+          <input type="number" name="stock" placeholder="Stok Barang" required min="0" />
+          <p>Stok Minimum</p>
+          <input type="number" name="minStock" placeholder="Stok Minimum" required min="0" />
+          <button type="submit">➕ Tambah Barang</button>
+        </form>
+      `;
+      tabContainer.appendChild(tabContent);
+    }
+  });
+
+  // Aktifkan tab pertama jika ada
+  if (categories.length > 0) {
+    showTab(categories[0]);
+  }
+
+  // Panggil fungsi setup drag and drop setelah tombol kategori dibuat
+  setupCategoryDragAndDrop();
+}
+
+// ... (kode JavaScript yang sudah ada) ...
+
+// Pastikan setupCategoryDragAndDrop dipanggil saat DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+  // ... (kode DOMContentLoaded yang sudah ada) ...
+
+  // Panggil setupCategoryDragAndDrop setelah updateNavbarCategories() selesai
+  // Ini sudah dipanggil di dalam updateNavbarCategories, jadi tidak perlu di sini lagi
+});
