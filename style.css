@@ -15,19 +15,221 @@ input[type="file"]::file-selector-button {
   --secondary-color: #2c3e50;
   --accent-color: #2980b9;
   --text-color: #333;
-  --background-color: #f1eeee;
+  --background-color: #d8d8d8;
   --card-bg: white;
   --border-color: #ddd;
   --success-color: #27ae60;
   --danger-color: #e74c3c;
   --warning-color: #e67e22;
   --grid-color: rgb(226, 226, 226);
+
+  /* Warna baru untuk tampilan profesional */
+  --professional-primary: #007bff; /* Biru cerah */
+  --professional-secondary: #6c757d; /* Abu-abu gelap */
+  --professional-accent: #28a745; /* Hijau sukses */
+  --professional-danger: #dc3545; /* Merah bahaya */
+  --professional-info: #17a2b8; /* Biru info */
+  --professional-light: #f8f9fa; /* Hampir putih */
+  --professional-dark: #343a40; /* Hitam gelap */
+  --professional-border: #ced4da; /* Abu-abu border */
 }
 
+/* START: Perubahan pada Checkout Modal dan Penambahan Kalkulator */
+.checkout-modal-content {
+  background-color: var(--professional-light);
+  padding: 25px;
+  border-radius: 10px;
+  width: 95%;
+  max-width: 500px;
+  margin: 20px auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
 
+.checkout-modal-content h3 {
+  color: var(--professional-dark);
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 24px;
+  border-bottom: 2px solid var(--professional-border);
+  padding-bottom: 10px;
+}
 
+.checkout-modal-content p {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: var(--professional-dark);
+}
 
+.checkout-modal-content .payment-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  margin: 15px 0;
+}
 
+.checkout-modal-content .payment-option {
+  background: var(--professional-primary);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.checkout-modal-content .payment-option:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+}
+
+.checkout-modal-content .payment-summary {
+  margin-top: 15px;
+  padding: 15px;
+  background: var(--professional-border);
+  border-radius: 8px;
+  display: none;
+  font-size: 16px;
+  color: var(--professional-dark);
+}
+
+.checkout-modal-content .payment-summary div {
+  margin: 8px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.checkout-modal-content .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.checkout-modal-content .modal-actions button {
+  padding: 12px 20px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.checkout-modal-content .modal-actions button:first-child {
+  background: var(--professional-accent);
+  color: white;
+}
+
+.checkout-modal-content .modal-actions button:first-child:hover {
+  background: #218838;
+  transform: translateY(-2px);
+}
+
+.checkout-modal-content .modal-actions button:last-child {
+  background: var(--professional-danger);
+  color: white;
+}
+
+.checkout-modal-content .modal-actions button:last-child:hover {
+  background: #c82333;
+  transform: translateY(-2px);
+}
+
+.manual-payment-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--professional-border);
+}
+
+.manual-payment-input label {
+  font-weight: bold;
+  color: var(--professional-dark);
+  white-space: nowrap;
+}
+
+.manual-payment-input input {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid var(--professional-border);
+  border-radius: 5px;
+  font-size: 16px;
+  text-align: right;
+  color: var(--professional-dark);
+  background-color: white;
+}
+
+.calculator-toggle-btn {
+  background: var(--professional-info);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.calculator-toggle-btn:hover {
+  background: #138496;
+}
+
+/* Numeric Calculator */
+#numericCalculator {
+  display: none; /* Hidden by default */
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: var(--professional-dark);
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  padding: 15px;
+  z-index: 10000; /* Pastikan di atas semua modal */
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 250px; /* Lebar kalkulator */
+}
+
+#numericCalculator button {
+  background-color: var(--professional-secondary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 15px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#numericCalculator button:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+#numericCalculator button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+#numericCalculator .delete-btn {
+  background-color: var(--professional-danger);
+}
+
+#numericCalculator .delete-btn:hover {
+  background-color: #c82333;
+}
+
+/* END: Perubahan pada Checkout Modal dan Penambahan Kalkulator */
 
 
     /* Sidebar Navigation */
@@ -288,16 +490,13 @@ input[type="file"]::file-selector-button {
     }
     body {
       transition: background-color 0.5s ease, color 0.3s ease;
-      margin: 0;
-      padding: 0;
       font-family: Arial, sans-serif;
+      scrollbar-gutter: stable both-edges;
       color: #333;
       overflow-x: hidden;
       background-size: 40px 40px;
       background-color: var(--background-color);
-  color: var(--text-color);
-
-
+      color: var(--text-color);
     }
 
 
@@ -547,9 +746,7 @@ input[type="file"]::file-selector-button {
 
 
 
-    .tab-content {
-      margin-top: 1px !important;
-    }
+
 #salesTab {
   position: fixed;
   top: 40px;
@@ -660,6 +857,8 @@ input[type="file"]::file-selector-button {
 }
 #salesData th:nth-child(4), /* Aksi */
 #salesData td:nth-child(4) {
+  border: 1px solid white;
+  position:sticky;
   width: 10%; /* Sesuaikan lebar kolom aksi */
   min-width: 60px; /* Lebar minimum */
   text-align: center; /* Tombol aksi rata tengah */
@@ -748,14 +947,20 @@ input[type="file"]::file-selector-button {
 
 
 
-    /* Tab Content */
-    .tab-content {
-      display: none;
-      padding: 10px;
-    }
+.tab-content {
+  display: none;
+  padding: 10px;
+  /* Pastikan tinggi dihitung dengan benar dan overflow diatur */
+  height: calc(100vh - var(--total-header-height)); /* Akan diatur oleh JS */
+  overflow-y: auto; /* Mengizinkan scrolling vertikal jika konten melebihi tinggi */
+  -webkit-overflow-scrolling: touch; /* Untuk smooth scroll di iOS */
+  margin-top: 1px !important;
+  animation: fadeIn 0.1s ease-in-out;
+}
+
     .tab-content.active {
       display: block;
-      height: calc(100vh - 150px); /* Sesuaikan dengan tinggi navbar */
+      height: calc(100vh - 140px); /* Sesuaikan dengan tinggi navbar */
       overflow-y: auto;
       -webkit-overflow-scrolling: touch; /* Untuk smooth scroll di iOS */
     }
@@ -951,23 +1156,24 @@ input[type="file"]::file-selector-button {
       border-right: 1px solid rgba(255, 255, 255, 0.126);
     }
 
-    .product-card {
-      background: white;
-      border-radius: 3px;
-      box-shadow: 0 9px 5px rgba(104, 104, 104, 0.1);
-      padding: 0; /* Ubah dari 12px ke 0 */
-      text-align: center;
-      align-items: center;
-      transition: transform 0.2s;
-      margin-top: 1px;
-      color: #333;
-      overflow: hidden;
-      border: none; /* Hapus border */
-      min-height: 320px; /* Pastikan semua card memiliki tinggi yang sama */
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
+.product-card {
+  background: white;
+  border-radius: 8px; /* Sedikit lebih membulat */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Bayangan lebih halus */
+  padding: 8px; /* Padding lebih ramping */
+  text-align: center;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Transisi yang lebih halus */
+  color: #333;
+  overflow: hidden;
+  border: 1px solid var(--border-color); /* Tambahkan border tipis */
+  min-height: 240px; /* Tinggi minimum yang lebih kompak */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  align-items: center; /* Pusatkan konten horizontal */
+  justify-content: space-between; /* Distribusi ruang vertikal */
+}
+
     .product-img-container {
       position: relative;
       width: 100%; /* Tambahkan ini */
@@ -983,13 +1189,14 @@ input[type="file"]::file-selector-button {
     }
     .product-img {
       width: 100%; /* Ubah dari 140px ke 100% */
-      height: 140px; /* Pertahankan tinggi */
+      height: 100px; /* Pertahankan tinggi */
       object-fit: cover; /* Pertahankan cover */
       border-radius: 3px 3px 0 0; /* Radius hanya di atas */
       border: none; /* Hapus border */
       background: #f5f5f5; /* Warna background lebih terang */
       cursor: pointer;
       transition: transform 0.2s;
+      margin-bottom: 5px; /* Jarak antara gambar dan info */
     }
   
 
@@ -1000,46 +1207,42 @@ input[type="file"]::file-selector-button {
       flex-direction: column;
       justify-content: space-between;
       padding: 1px;
+      width: 100%; /* Mengisi lebar kartu */
+      text-align: center; /* Memusatkan teks */
     }
 
     .product-name {
       margin: 0px 0;
-      font-size: 16px;
-      min-height: 40px; /* Pastikan nama produk tidak mempengaruhi layout */
+      font-size: 14px; /* Mengurangi ukuran font */
+      min-height: 30px; /* Pastikan nama produk tidak mempengaruhi layout */
+      line-height: 1.2; /* Mengurangi tinggi baris */
     }
 
     .product-price {
       font-weight: bold;
       color: var(--accent-color);
-      margin-bottom: 8px;
-      flex-grow: 1; /* Biarkan harga mengisi ruang yang tersedia */
-      display: flex;
-      align-items: flex-end; /* Posisikan harga di bagian bawah */
-      
+      font-size: 15px; /* Mengurangi ukuran font */
     }
 
 
   .stock-info-container {
-    margin-bottom: 10px;
+    margin-bottom: 5px; /* Mengurangi margin */
   }
 
-  .quantity-controls {
-    margin-top: auto; /* Pindahkan ke bagian bawah */
-    padding-top: 1px; /* Tambahkan jarak dari konten di atas */
-  }
+ 
       /* Stock Info */
     .stock-info {
-      font-size: 14px;
-      margin: 5px 0;
+      font-size: 12px; /* Mengurangi ukuran font */
+      margin: 2px 0; /* Mengurangi margin */
       display: flex;
-      justify-content: space-between;
+      justify-content: center; /* Memusatkan info stok */
       width: 100%;
       flex-wrap: wrap; /* Tambahkan ini untuk memungkinkan wrapping jika tidak cukup lebar */
     }
 
     .stock-info-container {
       display: flex;
-      justify-content: space-between;
+      justify-content: center; /* Memusatkan info stok */
       width: 100%;
       margin-bottom: 5px;
     }
@@ -1073,19 +1276,21 @@ input[type="file"]::file-selector-button {
     .quantity-controls {
       display: flex;
       align-items: center;
-      margin: 10px 0;
-      width: 100%;
+      margin: 5px 0; /* Mengurangi margin */
       justify-content: center;
+      margin-top: auto; /* Pindahkan ke bagian bawah */
+      padding-top: 1px; /* Tambahkan jarak dari konten di atas */
     }
+
     .quantity-controls button {
       background-color: #4CAF50;
       color: white;
       border: none;
-      width: 50px;
-      height: 50px;
-      border-radius: 4px;
+      width: 45px; /* Mengurangi ukuran tombol */
+      height: 45px; /* Mengurangi ukuran tombol */
+      border-radius: 2px;
       cursor: pointer;
-      font-size: 30px;
+      font-size: 20px; /* Mengurangi ukuran font */
     }
 
 
@@ -1095,13 +1300,14 @@ input[type="file"]::file-selector-button {
     }
 
     .quantity-controls input {
-      width: 40px;
+      width: 50px; /* Mengurangi lebar input */
+      height: 30px;
       text-align: center;
-      margin: 0 0px;
-      padding: 5px;
-      background-color: #cae0d3;
+      margin: 0 2px; /* Mengurangi margin */
+      padding: 3px; /* Mengurangi padding */
+      background-color: #d8d8d8;
       border: 0px solid #f5f5f5;
-      border-radius: 1px;
+      font-size: 14px; /* Mengurangi ukuran font */
     }
 
 
@@ -1158,7 +1364,7 @@ input[type="file"]::file-selector-button {
       flex-direction: column;
       gap: 12px;
       color: #333; 
-      margin-bottom: 250px;
+      /* margin-bottom: 250px; */ /* Hapus atau ubah ini */
     }
 
     form.add-form input[type="text"],
@@ -1265,15 +1471,16 @@ input[type="file"]::file-selector-button {
   min-height: 70vh; /* Tambahkan ini: minimal 70% dari tinggi viewport */
   max-height: 90vh; /* Pertahankan ini: maksimal 90% dari tinggi viewport */
   box-sizing: border-box;
-
+  overflow-y: auto; /* Tambahkan ini agar konten modal bisa di-scroll */
 }
 
     /* Prevent body scroll when modal is open */
     body.modal-open {
       overflow: hidden;
-      position: fixed;
-      width: 100%;
+      position: fixed; /* Penting untuk mencegah body bergeser */
+      width: 100%; /* Penting untuk mencegah body bergeser */
     }
+    
     
     /* Tambahkan ini di bagian modal styles */
 .modal-content input[type="text"],
@@ -1325,6 +1532,8 @@ input[type="file"]::file-selector-button {
 .modal-content form {
   display: flex;
   flex-direction: column;
+  flex-grow: 1; /* Tambahkan ini agar form mengisi ruang yang tersedia */
+  justify-content: space-between; /* Distribusi ruang vertikal */
 }
 
 /* Style khusus untuk file input di modal */
@@ -1717,10 +1926,7 @@ input[type="file"]::file-selector-button {
 
 
 
-/* Animasi untuk perpindahan tab */
-.tab-content {
-  animation: fadeIn 0.1s ease-in-out;
-}
+
 
 @keyframes fadeIn {
   from {
@@ -1781,17 +1987,17 @@ input[type="file"]::file-selector-button {
 /* Tambahkan di bagian atas file style.css */
 .product-badge {
   position: absolute;
-  top: -1px;
-  right: -1px;
+  top: -5px; /* Mengurangi jarak dari atas */
+  right: -5px; /* Mengurangi jarak dari kanan */
   background-color: #e74c3c;
   color: white;
   border-radius: 10%;
-  width: 40px;
-  height: 40px;
+  width: 30px; /* Mengurangi lebar badge */
+  height: 30px; /* Mengurangi tinggi badge */
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 16px; /* Mengurangi ukuran font */
   font-weight: bold;
   z-index: 1;
 }
@@ -1818,7 +2024,7 @@ input[type="file"]::file-selector-button {
 }
 
 .product-card {
-  min-height: 320px; /* Sesuaikan nilai ini sesuai kebutuhan */
+  min-height: 240px; /* Sesuaikan nilai ini sesuai kebutuhan */
   position: relative; /* Tambahkan ini untuk positioning badge */
   display: flex;
 }
@@ -2073,10 +2279,7 @@ input:checked + .slider .emoji.moon {
       /* Hapus atau komentari max-height: 900px; jika Anda ingin tabel memanjang lebih dari 900px */
       /* max-height: 900px; */ /* Jika Anda ingin tabel bisa lebih panjang dari 900px, hapus baris ini */
     }
-.dashboard-tab-content.active {
-  display: flex;
-  flex-direction: column;
-}
+
 
 .top-products-list {
   flex-grow: 1;
@@ -2156,5 +2359,157 @@ input:checked + .slider .emoji.moon {
 
 #downloadExcelBtn:active {
   background-color: #1e7e34; /* Warna hijau lebih gelap saat diklik */
+}
+
+
+/* Responsiveness */
+@media (max-width: 768px) {
+  .checkout-modal-content {
+    width: 90%;
+    padding: 20px;
+  }
+
+  .checkout-modal-content h3 {
+    font-size: 20px;
+  }
+
+  .checkout-modal-content .payment-option {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .manual-payment-input {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .manual-payment-input label {
+    margin-bottom: 5px;
+  }
+
+  .calculator-toggle-btn {
+    width: 100%;
+  }
+
+  #numericCalculator {
+    width: 200px;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  #numericCalculator button {
+    padding: 12px;
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .checkout-modal-content {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .checkout-modal-content h3 {
+    font-size: 18px;
+  }
+
+  .checkout-modal-content .payment-option {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  #numericCalculator {
+    width: 180px;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  #numericCalculator button {
+    padding: 10px;
+    font-size: 16px;
+  }
+}
+
+/* Tambahkan atau modifikasi bagian CSS berikut untuk mendukung tampilan edit kategori */
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Pusatkan vertikal */
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  background-color: #f9f9f9; /* Warna latar belakang item */
+  margin-bottom: 5px; /* Jarak antar item */
+  border-radius: 5px;
+}
+
+.category-item:last-child {
+  border-bottom: none; /* Hapus border bawah pada item terakhir */
+}
+
+.category-item span {
+  flex-grow: 1; /* Biarkan nama kategori mengisi ruang */
+  font-size: 16px;
+  color: #333;
+  font-weight: bold;
+}
+
+.category-item .category-actions {
+  display: flex;
+  gap: 8px; /* Jarak antar tombol aksi */
+}
+
+.category-item .category-actions button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.category-item .category-actions .btn-edit-category {
+  background: #3498db; /* Warna biru untuk edit */
+  color: white;
+}
+
+.category-item .category-actions .btn-edit-category:hover {
+  background: #2980b9;
+}
+
+.category-item .category-actions .btn-delete-category {
+  background: #e74c3c; /* Warna merah untuk hapus */
+  color: white;
+}
+
+.category-item .category-actions .btn-delete-category:hover {
+  background: #c0392b;
+}
+
+/* Style untuk input edit kategori yang muncul */
+.category-item input[type="text"] {
+  flex-grow: 1;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  margin-right: 8px; /* Jarak dengan tombol aksi */
+}
+
+.category-item .btn-save-category {
+  background: #27ae60; /* Warna hijau untuk simpan */
+  color: white;
+}
+
+.category-item .btn-save-category:hover {
+  background: #2ecc71;
+}
+
+.category-item .btn-cancel-edit {
+  background: #95a5a6; /* Warna abu-abu untuk batal */
+  color: white;
+}
+
+.category-item .btn-cancel-edit:hover {
+  background: #7f8c8d;
 }
 
