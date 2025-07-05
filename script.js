@@ -544,7 +544,6 @@ let sales = [];
 
 
 
-
 // Buka koneksi ke IndexedDB
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -1546,7 +1545,6 @@ async function deleteSalesRecord(index) {
   }
 }
 
-
 // Fungsi untuk mengunduh data Excel dalam format .xlsx
 function downloadExcel() {
   try {
@@ -2112,7 +2110,7 @@ async function importData(event) {
       data = {};
       cart = [];
       sales = [];
-      categories = [];
+      categories = []; // Kosongkan kategori
 
       // Process imported data
       if (importedData.products && Array.isArray(importedData.products)) {
@@ -2294,8 +2292,6 @@ function openGallery(context) {
 
 
 
-
-
 // Fungsi untuk menutup modal selamat datang
 function closeWelcomeModal() {
   document.getElementById('welcomeModal').style.display = 'none';
@@ -2439,6 +2435,37 @@ function updateCategoryBadges() {
   });
 }
 
+// Tambah Jenis Barang (Kategori)
+function addNewCategory(event) {
+  event.preventDefault();
+  const input = document.getElementById('newCategoryName');
+  const categoryName = input.value.trim().toLowerCase();
+
+  if (!categoryName) {
+    showNotification('Nama jenis barang tidak boleh kosong!');
+    return;
+  }
+
+  if (categories.includes(categoryName)) {
+    showNotification('Jenis barang sudah ada!');
+    return;
+  }
+
+  categories.push(categoryName);
+  // Simpan ke IndexedDB
+  const categoriesToSave = categories.map(name => ({ name }));
+  saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave)
+    .then(() => {
+      updateNavbarCategories();
+      renderCategoryList();
+      showNotification('Jenis barang berhasil ditambahkan!');
+      input.value = '';
+    })
+    .catch(err => {
+      console.error('Error adding category:', err);
+      showNotification('Gagal menambahkan jenis barang!');
+    });
+}
 
 // 1. Tambahkan fungsi formatRupiahInput baru (letakkan di bagian atas script.js jika mungkin)
 function formatRupiahInput(input) {
@@ -2533,8 +2560,6 @@ document.addEventListener('fullscreenchange', () => {
 
 
     }
-
-
 
 // Function to render top selling products
 
