@@ -1953,6 +1953,29 @@ input[type="file"]::file-selector-button {
   color: white;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
+.navbar button.draggable {
+  cursor: grab;
+  
+}
+.navbar button.draggable:active {
+  cursor: grabbing;
+}
+/* Gaya untuk placeholder saat dragging */
+.navbar .drag-placeholder {
+  background-color: rgba(0, 0, 0, 0.1);
+  border: 1px dashed var(--border-color);
+  height: 40px; /* Sesuaikan dengan tinggi tombol kategori */
+  width: 100px; /* Sesuaikan dengan lebar rata-rata tombol kategori */
+  margin: 0 5px;
+  border-radius: 8px;
+  transition: all 0.1s ease-in-out;
+}
+/* Gaya saat elemen sedang di-drag */
+.navbar button.dragging {
+  opacity: 0.5;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transform: scale(1.05);
+}
 
 .navbar button.manage-category {
   background-color: var(--accent-color) !important;
