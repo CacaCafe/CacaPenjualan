@@ -204,13 +204,23 @@
   </div>
 </div>
 
-
+<!-- Checkout Confirmation Modal -->
+<div id="checkoutModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content checkout-modal-content" onclick="event.stopPropagation()">
+    <button class="close-modal" onclick="closeCheckoutModal()">×</button>
+    <h3>Konfirmasi Checkout</h3>
+    <div id="checkoutSummary">
+      <!-- Ringkasan belanja akan dimuat di sini -->
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cash" onclick="processCheckout('Cash')"> Cash</button>
+      <button class="btn-transfer" onclick="processCheckout('Transfer')"> Transfer</button>
+      <button class="btn-cancel" onclick="closeCheckoutModal()">✖ Batal</button>
+    </div>
+  </div>
+</div>
 
 
 
 </body>
 </html>
-
-
-
-
