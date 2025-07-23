@@ -459,7 +459,6 @@ function renderSortedSalesTable(sortedSales) {
         <tr>
           <th onclick="sortSalesTable('time')">Waktu ▲▼</th>
           <th onclick="sortSalesTable('name')">Barang ▲▼</th>
-          <th onclick="sortSalesTable('code')">Kode Barang ▲▼</th>
           <th onclick="sortSalesTable('total')">Total Item ▲▼</th>
           <th>Aksi</th>
         </tr>
@@ -500,12 +499,13 @@ function renderSortedSalesTable(sortedSales) {
               <div class="sales-item-info">
                 <div class="sales-item-name">${item.name}</div>
                 <div class="sales-item-category">${item.category}</div>
+                <div class="sales-item-code">Kode: <strong>${item.code || '-'}</strong></div> <!-- Tampilkan kode barang dengan bold -->
               </div>
             </div>
           </td>
-          <td>${item.code || '-'}</td> <!-- Tampilkan kode barang -->
           <td style="font-weight: bold; text-align: right;">
-            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}
+            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
+            <small>(${sale.paymentType || '-'})</small> <!-- Tampilkan jenis pembayaran -->
           </td>
           <td class="sales-actions">
             <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus</button>
@@ -1396,9 +1396,7 @@ function renderSalesTable() {
         <tr>
           <th>Waktu</th>
           <th>Barang</th>
-          <th>Kode Barang</th>
           <th>Total Item</th>
-          <th>Jenis Pembayaran</th> <!-- Tambahkan kolom ini -->
           <th>Aksi</th>
         </tr>
       </thead>
@@ -1436,14 +1434,14 @@ function renderSalesTable() {
               <div class="sales-item-info">
                 <div class="sales-item-name">${item.name}</div>
                 <div class="sales-item-category">${item.category}</div>
+                <div class="sales-item-code">Kode: <strong>${item.code || '-'}</strong></div> <!-- Tampilkan kode barang dengan bold -->
               </div>
             </div>
           </td>
-          <td>${item.code || '-'}</td>
           <td style="font-weight: bold; text-align: right;">
-            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}
+            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
+            <small>(${sale.paymentType || '-'})</small> <!-- Tampilkan jenis pembayaran -->
           </td>
-          <td>${sale.paymentType || '-'}</td> <!-- Tampilkan jenis pembayaran -->
           <td class="sales-actions">
             <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus </button>
           </td>
@@ -2488,7 +2486,7 @@ function renderTopProducts() {
         <img src="${product.image}" class="top-product-img" alt="${product.name}">
         <div>
           <div>${product.name}</div>
-          <small>${product.category} - ${product.code || '-'}</small> <!-- Tampilkan kode barang -->
+          <small>${product.category} - <strong>${product.code || '-'}</strong></small> <!-- Tampilkan kode barang dengan bold -->
         </div>
       </div>
       <div>
@@ -2798,5 +2796,3 @@ async function deleteAllSalesRecords() {
     }
   }
 }
-
-
