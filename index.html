@@ -80,19 +80,17 @@
     </div>
     <div class="cart-modal-footer">
       <div class="cart-total ">Total: Rp<span id="cartTotal">0</span></div>
-      <button onclick="confirmCheckout()" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">Checkout</button>
+      <div class="cart-actions">
+        <button class="btn-cash" onclick="showCheckoutModal('Cash')"> Cash</button>
+        <button class="btn-transfer" onclick="showCheckoutModal('Transfer')"> Transfer</button>
+      </div>
     </div>
   </div>
 
 <!-- Tab konten buat melihat hasil update barang  -->
 <div id="dynamic-tabs">
 </div>
-<div>
-<br><br><br><br>
-<br><br><br><br>
-<br><br><br><br>
-<br><br><br><br>
-<br><br><br><br></div>
+
   <!-- Edit Modal -->
 <!-- Edit Modal -->
 <div id="editModal" class="modal-overlay" style="display: none;">
@@ -104,6 +102,9 @@
       
       <label>Nama Barang</label>
       <input type="text" name="name" id="editName" required>
+
+      <label>Kode Barang</label>
+      <input type="text" name="code" id="editCode" required>
       
       <label>Gambar Barang</label>
       <div class="image-input-container">
@@ -116,7 +117,7 @@
       </div>
       
       <label>Harga</label>
-      <input type="number" name="price" id="editPrice" required min="0">
+      <input type="text" name="price" id="editPrice" required min="0" oninput="formatRupiahInput(this)">
       
       <label>Stok</label>
       <input type="number" name="stock" id="editStock" required min="0">
@@ -153,7 +154,6 @@
     <div class="dashboard-tabs">
       <button class="dashboard-tab active" onclick="showDashboardTab('salesReport')">Laporan Penjualan</button>
       <button class="dashboard-tab" onclick="showDashboardTab('topProducts')">Produk Terlaris</button>
-      <!-- Hapus baris ini: <button class="dashboard-tab" onclick="showDashboardTab('salesChart')">Grafik Penjualan</button> -->
     </div>
     
     <div id="topProductsTab" class="dashboard-tab-content">
@@ -161,48 +161,12 @@
       <div class="top-products-list" id="topProductsList"></div>
     </div>
     
-    <!-- Hapus seluruh div ini:
-    <div id="salesChartTab" class="dashboard-tab-content">
-      <h4>Grafik Penjualan</h4>
-      <canvas id="salesChartCanvas"></canvas>
-      <div class="chart-options">
-        <select id="chartTypeSelect" onchange="updateSalesChart()">
-          <option value="daily">Harian</option>
-          <option value="weekly">Mingguan</option>
-          <option value="monthly">Bulanan</option>
-        </select>
-      </div>
-    </div>
-    -->
-    
     <div id="salesReportTab" class="dashboard-tab-content active">
-      <h4>Laporan Penjualan</h4>
       <div id="salesData"></div>
     </div>
   </div>
 </div>
 
-<!-- Backup Modal (Tambahkan ini jika belum ada) -->
-<div id="backupModal" class="modal-overlay" style="display: none;">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <button class="close-modal" onclick="closeBackupModal()">×</button>
-    <h3>Backup & Restore Data</h3>
-    <div class="backup-options">
-      <div class="backup-option" onclick="exportData()">
-        <h4>📥 Export Data</h4>
-        <p>Unduh semua data penjualan Anda ke file JSON.</p>
-      </div>
-      <div class="backup-option" onclick="showImportDialog()">
-        <h4>📤 Import Data</h4>
-        <p>Unggah file JSON untuk mengembalikan data penjualan Anda.</p>
-      </div>
-      <div class="backup-option" onclick="resetAllData()">
-        <h4>🔄 Reset Semua Data</h4>
-        <p>Hapus semua data penjualan, produk, dan keranjang belanja.</p>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Input file tersembunyi untuk import (PENTING: Tambahkan ini) -->
 <input type="file" id="importFile" style="display: none;" onchange="importData(event)">
@@ -240,35 +204,9 @@
   </div>
 </div>
 
-<!-- Checkout Confirmation Modal -->
-<div id="checkoutModal" class="modal-overlay" style="display: none;">
-  <div class="modal-content checkout-modal-content" onclick="event.stopPropagation()">
-    <button class="close-modal" onclick="closeCheckoutModal()">×</button>
-    <h3>Konfirmasi Checkout</h3>
-    <div id="checkoutSummary">
-      <!-- Ringkasan belanja akan dimuat di sini -->
-    </div>
-    <div class="modal-actions">
-      <button onclick="processCheckout()">Konfirmasi</button>
-      <button onclick="closeCheckoutModal()">Batal</button>
-    </div>
-  </div>
-</div>
 
-<!-- Numeric Calculator -->
-<div id="numericCalculator">
-  <button onclick="appendToAmount('1')">1</button>
-  <button onclick="appendToAmount('2')">2</button>
-  <button onclick="appendToAmount('3')">3</button>
-  <button onclick="appendToAmount('4')">4</button>
-  <button onclick="appendToAmount('5')">5</button>
-  <button onclick="appendToAmount('6')">6</button>
-  <button onclick="appendToAmount('7')">7</button>
-  <button onclick="appendToAmount('8')">8</button>
-  <button onclick="appendToAmount('9')">9</button>
-  <button onclick="appendToAmount('0')">0</button>
-  <button class="delete-btn" onclick="deleteLastDigit()">⌫</button>
-</div>
+
+
 
 </body>
 </html>
