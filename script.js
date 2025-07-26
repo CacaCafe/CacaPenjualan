@@ -1156,81 +1156,81 @@ async function saveEditedProduct(event) {
 }
 
 // Fungsi untuk mengkompres gambar sebelum diunggah
-async function compressImage(file, maxSizeKB = 50) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      const img = new Image();
-      img.onload = function() {
-        EXIF.getData(file, function() {
-          const orientation = EXIF.getTag(this, 'Orientation');
+    async function compressImage(file, maxSizeKB = 50) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const img = new Image();
+          img.onload = function() {
+            EXIF.getData(file, function() { // Dapatkan orientasi dari file asli
+              const orientation = EXIF.getTag(this, 'Orientation');
+              console.log('Compressing image - Detected EXIF Orientation:', orientation);
 
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
 
-          let width = img.width;
-          let height = img.height;
-          const maxDimension = 800; // Batasi dimensi maksimum
+              let width = img.width;
+              let height = img.height;
+              const maxDimension = 800;
 
-          // Sesuaikan dimensi agar tidak melebihi maxDimension
-          if (width > height) {
-            if (width > maxDimension) {
-              height *= maxDimension / width;
-              width = maxDimension;
-            }
-          } else {
-            if (height > maxDimension) {
-              width *= maxDimension / height;
-              height = maxDimension;
-            }
-          }
+              // Sesuaikan dimensi agar tidak melebihi maxDimension
+              if (width > height) {
+                if (width > maxDimension) {
+                  height *= maxDimension / width;
+                  width = maxDimension;
+                }
+              } else {
+                if (height > maxDimension) {
+                  width *= maxDimension / height;
+                  height = maxDimension;
+                }
+              }
 
-          // Atur ukuran canvas berdasarkan orientasi
-          if (orientation > 4 && orientation < 9) {
-            canvas.width = height;
-            canvas.height = width;
-          } else {
-            canvas.width = width;
-            canvas.height = height;
-          }
+              // Atur ukuran canvas berdasarkan orientasi dan gambar ulang
+              // Ini adalah bagian penting: terapkan transformasi orientasi di sini
+              if (orientation > 4 && orientation < 9) { // Orientasi yang menukar lebar dan tinggi
+                canvas.width = height;
+                canvas.height = width;
+              } else {
+                canvas.width = width;
+                canvas.height = height;
+              }
 
-          // Terapkan transformasi orientasi
-          switch (orientation) {
-            case 2: ctx.transform(-1, 0, 0, 1, width, 0); break;
-            case 3: ctx.transform(-1, 0, 0, -1, width, height); break;
-            case 4: ctx.transform(1, 0, 0, -1, 0, height); break;
-            case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
-            case 6: ctx.transform(0, 1, -1, 0, height, 0); break;
-            case 7: ctx.transform(0, -1, -1, 0, height, width); break;
-            case 8: ctx.transform(0, -1, 1, 0, 0, width); break;
-            default: ctx.transform(1, 0, 0, 1, 0, 0);
-          }
+              // Terapkan transformasi orientasi
+              switch (orientation) {
+                case 2: ctx.transform(-1, 0, 0, 1, width, 0); break;
+                case 3: ctx.transform(-1, 0, 0, -1, width, height); break;
+                case 4: ctx.transform(1, 0, 0, -1, 0, height); break;
+                case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+                case 6: ctx.transform(0, 1, -1, 0, height, 0); break;
+                case 7: ctx.transform(0, -1, -1, 0, height, width); break;
+                case 8: ctx.transform(0, -1, 1, 0, 0, width); break;
+                default: ctx.transform(1, 0, 0, 1, 0, 0);
+              }
 
-          ctx.drawImage(img, 0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height); // Gambar gambar ke canvas yang sudah ditransformasi
 
-          let quality = 0.7; // Mulai dengan kualitas awal
-          let compressedDataUrl;
+              let quality = 0.7;
+              let compressedDataUrl;
 
-          // Loop untuk menemukan kualitas terbaik di bawah maxSizeKB
-          for (let i = 0; i < 5; i++) {
-            compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-            const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
+              for (let i = 0; i < 5; i++) {
+                compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
 
-            if (sizeKB <= maxSizeKB) break; // Berhenti jika ukuran sudah sesuai
-
-            quality -= 0.15; // Kurangi kualitas
-            if (quality < 0.1) quality = 0.1; // Batasi kualitas minimum
-          }
-
-          resolve(compressedDataUrl);
-        });
-      };
-      img.src = event.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+                if (sizeKB <= maxSizeKB) break;
+                quality -= 0.15;
+                if (quality < 0.1) quality = 0.1;
+              }
+              resolve(compressedDataUrl);
+            });
+          };
+          img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    
 
 // Fungsi untuk menambahkan produk baru
 async function addProduct(event, category) {
@@ -1310,8 +1310,8 @@ function fixImageOrientation(img, orientation) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  // Atur ukuran canvas berdasarkan orientasi
-  if (orientation > 4) {
+
+  if (orientation > 4) { 
     canvas.width = img.height;
     canvas.height = img.width;
   } else {
@@ -1319,21 +1319,22 @@ function fixImageOrientation(img, orientation) {
     canvas.height = img.height;
   }
 
-  // Terapkan transformasi berdasarkan orientasi
+
   switch (orientation) {
-    case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
-    case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
-    case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break;
-    case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
-    case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break;
-    case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break;
-    case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break;
-    default: ctx.transform(1, 0, 0, 1, 0, 0);
+    case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break; // Flip horizontal
+    case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break; // Rotate 180
+    case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break; // Flip vertical
+    case 5: ctx.transform(0, 1, 1, 0, 0, 0); break; // Transpose (rotate 90 + flip horizontal)
+    case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break; // Rotate 90 clockwise
+    case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break; // Transverse (rotate 90 + flip vertical)
+    case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break; // Rotate 90 counter-clockwise
+    default: ctx.transform(1, 0, 0, 1, 0, 0); // No rotation
   }
 
-  ctx.drawImage(img, 0, 0);
-  img.src = canvas.toDataURL();
+  ctx.drawImage(img, 0, 0); 
+  img.src = canvas.toDataURL(); 
 }
+
 
 // Fungsi untuk membuka kamera perangkat
 function openCamera(context) {
