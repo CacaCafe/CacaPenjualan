@@ -87,6 +87,9 @@ function openDatabase() {
   });
 }
 
+
+let paymentMethods = ['Cash', 'Transfer']; // Default, bisa diubah user
+
 // Fungsi untuk menyimpan data ke IndexedDB
 function saveToIndexedDB(storeName, dataToSave) {
   return new Promise((resolve, reject) => {
@@ -1155,82 +1158,102 @@ async function saveEditedProduct(event) {
   showNotification(`Produk "${name}" berhasil diperbarui!`);
 }
 
+// Fungsi untuk memperbaiki orientasi gambar berdasarkan data EXIF
+function fixImageOrientation(img, orientation) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Set canvas dimensions based on orientation
+  if (orientation > 4 && orientation < 9) {
+    canvas.width = img.height;
+    canvas.height = img.width;
+  } else {
+    canvas.width = img.width;
+    canvas.height = img.height;
+  }
+
+  // Apply transformations based on EXIF orientation
+  switch (orientation) {
+    case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
+    case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
+    case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break;
+    case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+    case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break;
+    case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break;
+    case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break;
+    default: ctx.transform(1, 0, 0, 1, 0, 0); break;
+  }
+
+  ctx.drawImage(img, 0, 0);
+  img.src = canvas.toDataURL();
+}
+
+
+function previewImage(event, context) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const previewId = context === 'edit' ? 'editPreview' : `imagePreview-${context}`;
+  const preview = document.getElementById(previewId);
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+  };
+
+  reader.readAsDataURL(file);
+}
+
+
 // Fungsi untuk mengkompres gambar sebelum diunggah
-    async function compressImage(file, maxSizeKB = 50) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          const img = new Image();
-          img.onload = function() {
-            EXIF.getData(file, function() { // Dapatkan orientasi dari file asli
-              const orientation = EXIF.getTag(this, 'Orientation');
-              console.log('Compressing image - Detected EXIF Orientation:', orientation);
+async function compressImage(file, maxSizeKB = 50) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const img = new Image();
+      img.onload = function() {
+        // --- HAPUS SEMUA PROSES EXIF DAN TRANSFORMASI ORIENTASI ---
+        let width = img.width;
+        let height = img.height;
+        const maxDimension = 800;
 
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
+        // Resize jika terlalu besar
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height *= maxDimension / width;
+            width = maxDimension;
+          } else {
+            width *= maxDimension / height;
+            height = maxDimension;
+          }
+        }
 
-              let width = img.width;
-              let height = img.height;
-              const maxDimension = 800;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
 
-              // Sesuaikan dimensi agar tidak melebihi maxDimension
-              if (width > height) {
-                if (width > maxDimension) {
-                  height *= maxDimension / width;
-                  width = maxDimension;
-                }
-              } else {
-                if (height > maxDimension) {
-                  width *= maxDimension / height;
-                  height = maxDimension;
-                }
-              }
+        let quality = 0.7;
+        let compressedDataUrl;
 
-              // Atur ukuran canvas berdasarkan orientasi dan gambar ulang
-              // Ini adalah bagian penting: terapkan transformasi orientasi di sini
-              if (orientation > 4 && orientation < 9) { // Orientasi yang menukar lebar dan tinggi
-                canvas.width = height;
-                canvas.height = width;
-              } else {
-                canvas.width = width;
-                canvas.height = height;
-              }
+        for (let i = 0; i < 5; i++) {
+          compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
+          if (sizeKB <= maxSizeKB) break;
+          quality -= 0.15;
+          if (quality < 0.1) quality = 0.1;
+        }
+        resolve(compressedDataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
-              // Terapkan transformasi orientasi
-              switch (orientation) {
-                case 2: ctx.transform(-1, 0, 0, 1, width, 0); break;
-                case 3: ctx.transform(-1, 0, 0, -1, width, height); break;
-                case 4: ctx.transform(1, 0, 0, -1, 0, height); break;
-                case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
-                case 6: ctx.transform(0, 1, -1, 0, height, 0); break;
-                case 7: ctx.transform(0, -1, -1, 0, height, width); break;
-                case 8: ctx.transform(0, -1, 1, 0, 0, width); break;
-                default: ctx.transform(1, 0, 0, 1, 0, 0);
-              }
-
-              ctx.drawImage(img, 0, 0, width, height); // Gambar gambar ke canvas yang sudah ditransformasi
-
-              let quality = 0.7;
-              let compressedDataUrl;
-
-              for (let i = 0; i < 5; i++) {
-                compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-                const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
-
-                if (sizeKB <= maxSizeKB) break;
-                quality -= 0.15;
-                if (quality < 0.1) quality = 0.1;
-              }
-              resolve(compressedDataUrl);
-            });
-          };
-          img.src = event.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-    
 
 // Fungsi untuk menambahkan produk baru
 async function addProduct(event, category) {
@@ -1305,47 +1328,22 @@ async function addProduct(event, category) {
   }
 }
 
-// Fungsi untuk memperbaiki orientasi gambar berdasarkan data EXIF
-function fixImageOrientation(img, orientation) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-
-
-  if (orientation > 4) { 
-    canvas.width = img.height;
-    canvas.height = img.width;
-  } else {
-    canvas.width = img.width;
-    canvas.height = img.height;
-  }
-
-
-  switch (orientation) {
-    case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break; // Flip horizontal
-    case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break; // Rotate 180
-    case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break; // Flip vertical
-    case 5: ctx.transform(0, 1, 1, 0, 0, 0); break; // Transpose (rotate 90 + flip horizontal)
-    case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break; // Rotate 90 clockwise
-    case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break; // Transverse (rotate 90 + flip vertical)
-    case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break; // Rotate 90 counter-clockwise
-    default: ctx.transform(1, 0, 0, 1, 0, 0); // No rotation
-  }
-
-  ctx.drawImage(img, 0, 0); 
-  img.src = canvas.toDataURL(); 
-}
-
-
 // Fungsi untuk membuka kamera perangkat
 function openCamera(context) {
   const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
   const input = document.getElementById(inputId);
   if (input) {
-    input.removeAttribute('capture');
-    input.setAttribute('capture', 'environment'); // Menggunakan kamera belakang
+    input.setAttribute('capture', 'environment'); // Gunakan kamera belakang
     input.click();
   }
 }
+
+// Setup event listener untuk tombol fullscreen
+document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
+// Setup event listener untuk tombol refresh
+document.getElementById('refreshButton').addEventListener('click', function() {
+  location.reload(); // Memuat ulang halaman
+});
 
 // Fungsi untuk membuka galeri perangkat
 function openGallery(context) {
@@ -1357,45 +1355,7 @@ function openGallery(context) {
   }
 }
 
-// Fungsi untuk menampilkan pratinjau gambar yang dipilih
-function previewImage(event, context) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  // Validasi format file
-  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!validTypes.includes(file.type)) {
-    showNotification('Hanya format JPEG/PNG/WEBP yang diizinkan!');
-    return;
-  }
-
-  // Validasi ukuran file (maksimal 5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    showNotification('Ukuran gambar terlalu besar! Maksimal 5MB.');
-    return;
-  }
-
-  const previewId = context === 'edit' ? 'editPreview' : `imagePreview-${context}`;
-  const preview = document.getElementById(previewId);
-  const reader = new FileReader();
-
-  reader.onload = function(e) {
-    preview.src = e.target.result;
-    preview.style.display = 'block';
-
-    // Perbaikan orientasi untuk gambar dari kamera
-    EXIF.getData(file, function() {
-      const orientation = EXIF.getTag(this, 'Orientation');
-      if (orientation && orientation > 1) {
-        fixImageOrientation(preview, orientation);
-      }
-    });
-  };
-
-  reader.readAsDataURL(file);
-}
-
-// ===================== Fungsi Manajemen Kategori =====================
+// ===================== Variabel & Fungsi Modal Kategori =====================
 // Fungsi untuk menampilkan modal kategori
 function showCategoryModal() {
   document.body.style.overflow = 'hidden'; // Mencegah scroll body
@@ -1680,10 +1640,16 @@ function renderSalesTable() {
   `;
 
   let grandTotal = 0;
+  let totalCash = 0;
+  let totalTransfer = 0;
 
   sales.forEach((sale, saleIndex) => {
     grandTotal += sale.total;
-
+    if (sale.paymentType && sale.paymentType.toLowerCase() === 'cash') {
+      totalCash += sale.total;
+    } else if (sale.paymentType && sale.paymentType.toLowerCase() === 'transfer') {
+      totalTransfer += sale.total;
+    }
     // Kelompokkan item berdasarkan produk dalam penjualan yang sama
     const itemsByProduct = {};
     sale.items.forEach(item => {
@@ -1730,6 +1696,12 @@ function renderSalesTable() {
 
   html += `</tbody></table>`;
   html += `<div class="sales-total">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
+  html += `
+    <div class="sales-total" style="font-size:15px; margin-top:0;">
+      <span style="color:#27ae60;">Total Cash: Rp${formatRupiah(totalCash)}</span><br>
+      <span style="color:#2980b9;">Total Transfer: Rp${formatRupiah(totalTransfer)}</span>
+    </div>
+  `;
   html += `
     <div class="sales-actions-bottom">
       <button id="downloadExcelBtn" onclick="downloadExcel()">⬇️ Download Data</button>
@@ -1873,8 +1845,18 @@ function renderSortedSalesTable(sortedSales) {
 
   html += `</tbody></table>`;
   html += `<div class="sales-total">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
-  html += `<button id="downloadExcelBtn" onclick="downloadExcel()">⬇️ Download Data</button>`;
-
+  html += `
+    <div class="sales-total" style="font-size:15px; margin-top:0;">
+      <span style="color:#27ae60;">Total Cash: Rp${formatRupiah(totalCash)}</span><br>
+      <span style="color:#2980b9;">Total Transfer: Rp${formatRupiah(totalTransfer)}</span>
+    </div>
+  `;
+  html += `
+    <div class="sales-actions-bottom">
+      <button id="downloadExcelBtn" onclick="downloadExcel()">⬇️ Download Data</button>
+      <button id="deleteAllSalesBtn" onclick="deleteAllSalesRecords()">🗑️ Hapus Semua Data</button>
+    </div>
+  `;
   salesDiv.innerHTML = html;
 
   // Tambahkan indikator panah ke kolom yang diurutkan
@@ -2321,11 +2303,11 @@ function closeAllModals() {
 
   modalsToClose.forEach(modal => {
     if (modal) {
-      if (modal.classList.contains('open')) {
-        if (modal.id === 'sidebar') closeSidebar();
-        else if (modal.id === 'cartModal') closeCartModal();
-      } else if (modal.style.display === 'flex') {
-        if (modal.id === 'welcomeModal') closeWelcomeModal();
+      if (modal.classList.contains('sidebar')) {
+        closeSidebar();
+      } else if (modal.classList.contains('open')) {
+        if (modal.id === 'cartModal') closeCartModal();
+        else if (modal.id === 'welcomeModal') closeWelcomeModal();
         else if (modal.id === 'editModal') closeEditModal();
         else if (modal.id === 'categoryModal') closeCategoryModal();
         else if (modal.id === 'dashboardModal') closeDashboard();
