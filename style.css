@@ -992,6 +992,9 @@ body {
   width: 100%;
   margin: 0;
 }
+img {
+  image-orientation: from-image; /* Ini bisa membantu di beberapa browser */
+}
 
 .product-img {
   width: 100%;
