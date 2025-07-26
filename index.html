@@ -6,13 +6,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Form Penjualan Barang</title>
-  <!-- Library untuk membaca data EXIF dari gambar (untuk orientasi gambar) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
-  <!-- Library Chart.js untuk membuat grafik (digunakan di Dashboard) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Link ke file CSS kustom untuk styling aplikasi -->
+  <!-- Perubahan di sini: Menggunakan versi Chart.js yang lebih spesifik atau tanpa source map -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.js"></script> 
   <link rel="stylesheet" href="style.css">
 </head>
+<body>
+  <!-- ... (konten HTML lainnya) ... -->
+</body>
+</html>
 <body>
   <!-- Sidebar Navigasi -->
   <div class="sidebar" id="sidebar">
@@ -37,6 +39,7 @@
     </div>
   </div>
 
+  
   <!-- Overlay untuk Sidebar (menutup sidebar saat klik di luar) -->
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
@@ -58,6 +61,7 @@
     <!-- Kontrol Menu (misalnya tombol Fullscreen) -->
     <div class="menu-controls">
       <button id="fullscreenButton" class="control-button">⛶</button>
+      <button id="refreshButton" class="control-button">↻</button>
     </div>
   </div>
 
