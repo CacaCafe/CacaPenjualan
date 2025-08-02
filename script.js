@@ -1,51 +1,43 @@
-// Fungsi untuk menyesuaikan margin konten berdasarkan tinggi header dan navbar
 function adjustContentMargin() {
   const menuBarHeight = document.querySelector('.menu-bar').offsetHeight;
   const navbarHeight = document.querySelector('.navbar').offsetHeight;
-  const totalHeight = menuBarHeight + navbarHeight + 0; // Tambahkan sedikit margin
+  const totalHeight = menuBarHeight + navbarHeight + 0;
   document.body.style.marginTop = totalHeight + 'px';
-  // Set variabel CSS untuk tinggi header
   document.documentElement.style.setProperty('--total-header-height', `${totalHeight}px`);
 }
 
-// Panggil fungsi adjustContentMargin saat halaman dimuat dan saat ukuran jendela diubah
 window.addEventListener('load', adjustContentMargin);
 window.addEventListener('resize', adjustContentMargin);
 
-// ===================== Variabel Global Aplikasi =====================
-// Nama database IndexedDB
 const DB_NAME = 'penjualan_barang_db';
-// Versi database IndexedDB
-const DB_VERSION = 1;
-// Nama-nama object store dalam IndexedDB
+const DB_VERSION = 4;
 const STORE_NAMES = {
   PRODUCTS: 'products',
   CART: 'cart',
   SALES: 'sales',
-  CATEGORIES: 'categories'
+  CATEGORIES: 'categories',
+  PREORDERS: 'preorders',
+  PAYMENT_METHODS: 'paymentMethods',
+  TRANSFER_METHODS: 'transferMethods'
 };
-// Objek database IndexedDB
 let db;
-// Data produk, dikelompokkan berdasarkan kategori
 let data = {};
-// Daftar kategori produk
 let categories = [];
-// Item-item dalam keranjang belanja
 let cart = [];
-// Riwayat transaksi penjualan
 let sales = [];
-// Variabel untuk menyimpan input angka manual di modal checkout
+let preOrders = [];
 let currentAmountInput = '';
-// Variabel untuk menyimpan total akhir setelah diskon di modal checkout
 let currentGrandTotalAfterDiscount = 0;
-// Variabel untuk melacak status modal keranjang
 let isCartModalOpen = false;
-// Variabel untuk pengurutan tabel penjualan
 let currentSortColumn = null;
-let sortDirection = 1; // 1 untuk ascending, -1 untuk descending
+let sortDirection = 1;
 
-// ===================== Fungsi Database IndexedDB =====================
-// Fungsi untuk membuka koneksi ke IndexedDB
+let paymentMethods = [];
+let transferMethods = [];
+
+let selectedPaymentMethod = '';
+let selectedTransferMethod = '';
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -60,96 +52,93 @@ function openDatabase() {
       resolve(db);
     };
 
-    // Dipanggil saat database dibuat atau versi diupgrade
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
 
-      // Buat object store untuk produk jika belum ada
       if (!db.objectStoreNames.contains(STORE_NAMES.PRODUCTS)) {
         db.createObjectStore(STORE_NAMES.PRODUCTS, { keyPath: ['category', 'name'] });
       }
 
-      // Buat object store untuk keranjang jika belum ada
       if (!db.objectStoreNames.contains(STORE_NAMES.CART)) {
         db.createObjectStore(STORE_NAMES.CART, { keyPath: 'name' });
       }
 
-      // Buat object store untuk penjualan jika belum ada
       if (!db.objectStoreNames.contains(STORE_NAMES.SALES)) {
         db.createObjectStore(STORE_NAMES.SALES, { keyPath: 'time' });
       }
 
-      // Buat object store untuk kategori jika belum ada
       if (!db.objectStoreNames.contains(STORE_NAMES.CATEGORIES)) {
         db.createObjectStore(STORE_NAMES.CATEGORIES, { keyPath: 'name' });
+      }
+
+      if (!db.objectStoreNames.contains(STORE_NAMES.PREORDERS)) {
+        db.createObjectStore(STORE_NAMES.PREORDERS, { keyPath: 'id', autoIncrement: true });
+        console.log(`Object store '${STORE_NAMES.PREORDERS}' dibuat.`);
+      }
+      if (!db.objectStoreNames.contains(STORE_NAMES.PAYMENT_METHODS)) {
+        db.createObjectStore(STORE_NAMES.PAYMENT_METHODS, { keyPath: 'name' });
+        console.log(`Object store '${STORE_NAMES.PAYMENT_METHODS}' dibuat.`);
+      }
+      if (!db.objectStoreNames.contains(STORE_NAMES.TRANSFER_METHODS)) {
+        db.createObjectStore(STORE_NAMES.TRANSFER_METHODS, { keyPath: 'name' });
+        console.log(`Object store '${STORE_NAMES.TRANSFER_METHODS}' dibuat.`);
       }
     };
   });
 }
 
-
-let paymentMethods = ['Cash', 'Transfer']; // Default, bisa diubah user
-
-// Fungsi untuk menyimpan data ke IndexedDB
 function saveToIndexedDB(storeName, dataToSave) {
   return new Promise((resolve, reject) => {
     if (!db) {
-      reject(new Error("Database belum diinisialisasi"));
+      reject(new Error("Database belum diinisialisasi."));
       return;
     }
 
     const transaction = db.transaction([storeName], 'readwrite');
-    transaction.onerror = (event) => reject(event.target.error);
-
-    const store = transaction.objectStore(storeName);
-    const clearRequest = store.clear(); // Hapus semua data lama sebelum menyimpan yang baru
-
-    clearRequest.onsuccess = () => {
-      try {
-        let items = [];
-
-        // Menangani struktur data yang berbeda
-        if (Array.isArray(dataToSave)) {
-          items = dataToSave;
-        } else if (typeof dataToSave === 'object' && dataToSave !== null) {
-          // Untuk struktur data produk (objek kategori berisi array produk)
-          items = Object.values(dataToSave).flat();
-        }
-
-        if (items.length === 0) return resolve(); // Jika tidak ada item, selesaikan
-
-        let completed = 0;
-        const total = items.length;
-
-        items.forEach(item => {
-          // Pastikan item produk memiliki properti yang diperlukan
-          if (storeName === STORE_NAMES.PRODUCTS) {
-            if (!item.category || !item.name) {
-              console.warn('Item produk tidak valid:', item);
-              if (++completed === total) resolve();
-              return;
-            }
-          }
-
-          const request = store.add(item); // Tambahkan item ke object store
-          request.onerror = (e) => {
-            console.error('Gagal menyimpan item:', item, e.target.error);
-            if (++completed === total) resolve();
-          };
-          request.onsuccess = () => {
-            if (++completed === total) resolve();
-          };
-        });
-      } catch (error) {
-        reject(error);
-      }
+    transaction.onerror = (event) => {
+      console.error(`Transaksi gagal untuk store ${storeName}:`, event.target.error);
+      reject(event.target.error);
+    };
+    transaction.oncomplete = () => {
+      resolve();
     };
 
-    clearRequest.onerror = (event) => reject(event.target.error);
+    const store = transaction.objectStore(storeName);
+    const clearRequest = store.clear();
+
+    clearRequest.onerror = (event) => {
+      console.error(`Gagal menghapus data lama dari store ${storeName}:`, event.target.error);
+      reject(event.target.error);
+    };
+
+    clearRequest.onsuccess = () => {
+      let items = [];
+
+      if (Array.isArray(dataToSave)) {
+        items = dataToSave;
+      } else if (typeof dataToSave === 'object' && dataToSave !== null) {
+        items = Object.values(dataToSave).flat().filter(item => {
+          if (storeName === STORE_NAMES.PRODUCTS) {
+            return item.category && item.name;
+          }
+          return true;
+        });
+      }
+
+      if (items.length === 0) {
+        return;
+      }
+
+      items.forEach(item => {
+        const addRequest = store.add(item);
+        addRequest.onerror = (e) => {
+          console.error(`Gagal menyimpan item ke store ${storeName}:`, item, e.target.error);
+        };
+      });
+    };
   });
 }
 
-// Fungsi untuk memuat data dari IndexedDB
 function loadFromIndexedDB(storeName) {
   return new Promise((resolve, reject) => {
     if (!db) {
@@ -159,7 +148,7 @@ function loadFromIndexedDB(storeName) {
 
     const transaction = db.transaction([storeName], 'readonly');
     const store = transaction.objectStore(storeName);
-    const request = store.getAll(); // Ambil semua data dari object store
+    const request = store.getAll();
 
     request.onerror = (event) => {
       reject(event.target.error);
@@ -171,37 +160,53 @@ function loadFromIndexedDB(storeName) {
   });
 }
 
-// Fungsi untuk memuat semua data dari IndexedDB saat aplikasi dimulai
 async function loadFromDatabase() {
   try {
-    await openDatabase(); // Buka koneksi database
+    console.log("Membuka database...");
+    await openDatabase();
+    console.log("Database terbuka.");
 
-    // Muat kategori
+    console.log("Memuat kategori...");
     const loadedCategories = await loadFromIndexedDB(STORE_NAMES.CATEGORIES);
-    categories = loadedCategories && loadedCategories.length > 0 ?
+    categories = Array.isArray(loadedCategories) && loadedCategories.length > 0 ?
       loadedCategories.map(c => c.name) :
       [];
+    console.log("Kategori dimuat dan diproses:", categories);
 
-    // Muat produk
     const loadedProducts = await loadFromIndexedDB(STORE_NAMES.PRODUCTS);
-    data = {}; // Reset data produk
-    if (loadedProducts && loadedProducts.length > 0) {
+    data = {};
+    if (Array.isArray(loadedProducts) && loadedProducts.length > 0) {
       loadedProducts.forEach(product => {
-        if (!data[product.category]) data[product.category] = [];
-        data[product.category].push(product);
+        if (product && product.category) {
+          if (!data[product.category]) data[product.category] = [];
+          data[product.category].push(product);
+        } else {
+          console.warn("Produk tidak valid saat dimuat:", product);
+        }
       });
     }
+    console.log("Produk dimuat dan diproses:", data);
 
-    // Muat keranjang dan penjualan
-    cart = await loadFromIndexedDB(STORE_NAMES.CART) || [];
-    sales = await loadFromIndexedDB(STORE_NAMES.SALES) || [];
+    cart = Array.isArray(await loadFromIndexedDB(STORE_NAMES.CART)) ? await loadFromIndexedDB(STORE_NAMES.CART) : [];
+    sales = Array.isArray(await loadFromIndexedDB(STORE_NAMES.SALES)) ? await loadFromIndexedDB(STORE_NAMES.SALES) : [];
+    preOrders = Array.isArray(await loadFromIndexedDB(STORE_NAMES.PREORDERS)) ? await loadFromIndexedDB(STORE_NAMES.PREORDERS) : [];
 
-    // Perbarui UI setelah data dimuat
+    const loadedPaymentMethods = await loadFromIndexedDB(STORE_NAMES.PAYMENT_METHODS);
+    paymentMethods = Array.isArray(loadedPaymentMethods) && loadedPaymentMethods.length > 0 ?
+      loadedPaymentMethods.map(m => m.name) :
+      ['Cash', 'Transfer'];
+
+    const loadedTransferMethods = await loadFromIndexedDB(STORE_NAMES.TRANSFER_METHODS);
+    transferMethods = Array.isArray(loadedTransferMethods) && loadedTransferMethods.length > 0 ?
+      loadedTransferMethods.map(m => m.name) :
+      ['Bank BCA', 'Bank Mandiri', 'OVO', 'GoPay'];
+
+    console.log("Keranjang, penjualan, pre-order, dan metode pembayaran dimuat.");
+
+    console.log("Data berhasil dimuat. Memperbarui UI...");
     updateNavbarCategories();
     renderProducts();
     updateCartBadge();
-
-    // Tampilkan tab kategori pertama jika ada
     if (categories.length > 0) {
       const savedTab = localStorage.getItem('activeTab');
       if (savedTab && document.getElementById(savedTab)) {
@@ -209,14 +214,24 @@ async function loadFromDatabase() {
       } else {
         showTab(categories[0]);
       }
+    } else {
+      document.getElementById('dynamic-tabs').innerHTML = '<div class="empty-state">Tidak ada jenis barang. Tambahkan jenis barang baru untuk memulai.</div>';
+      const navbar = document.querySelector('.navbar');
+      navbar.innerHTML = '';
+      const manageBtn = document.createElement('button');
+      manageBtn.className = 'manage-category';
+      manageBtn.textContent = '➕ Jenis Barang';
+      manageBtn.onclick = showCategoryModal;
+      navbar.appendChild(manageBtn);
     }
+    console.log("UI diperbarui.");
   } catch (error) {
-    console.error("Gagal memuat data:", error);
-    showNotification('Gagal memuat data!');
+    console.error("Gagal memuat data (detail):", error);
+    showNotification('Gagal memuat data! Silakan coba muat ulang halaman atau reset data.');
+    document.getElementById('dynamic-tabs').innerHTML = '<div class="empty-state" style="color: red;">Gagal memuat data. Mohon periksa konsol browser untuk detail kesalahan.</div>';
   }
 }
 
-// Fungsi untuk menyimpan semua data ke IndexedDB
 async function saveAllData() {
   try {
     await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
@@ -224,50 +239,71 @@ async function saveAllData() {
     await saveToIndexedDB(STORE_NAMES.SALES, sales);
     const categoriesToSave = categories.map(name => ({ name }));
     await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
+    await saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders);
+    const paymentMethodsToSave = paymentMethods.map(name => ({ name }));
+    await saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, paymentMethodsToSave);
+    const transferMethodsToSave = transferMethods.map(name => ({ name }));
+    await saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethodsToSave);
   } catch (error) {
     console.error("Gagal menyimpan data ke database:", error);
   }
 }
 
-// ===================== Fungsi Utilitas Umum =====================
-// Fungsi untuk menampilkan notifikasi popup
 function showNotification(message) {
-  const notification = document.getElementById('notification');
+  let notification = document.getElementById('notification');
+  
+  if (!notification) {
+    notification = document.createElement('div');
+    notification.id = 'notification';
+    notification.className = 'notification';
+    document.body.appendChild(notification);
+  }
+  
   notification.textContent = message;
   notification.style.display = 'flex';
-
-  // Reset animasi dan jalankan kembali
-  notification.style.animation = 'none';
-  void notification.offsetWidth; // Memaksa reflow DOM
-  notification.style.animation = 'fadeInUp 0.3s ease-out, fadeOutDown 0.5s 2.5s forwards';
+  
+  void notification.offsetWidth;
+  
+  notification.style.animation = 'fadeInUp 0.3s ease-out, fadeOutDown 0.5s ease 2.5s forwards';
+  
+  setTimeout(() => {
+    notification.style.display = 'none';
+  }, 3000);
 }
 
-// Fungsi untuk mengkapitalisasi huruf pertama dari sebuah string
+function handleEditSuccess(data) {
+  showNotification(`Produk "${data.name}" berhasil diperbarui!`);
+}
+
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-// Fungsi untuk memformat angka menjadi format Rupiah
 function formatRupiah(number) {
   return new Intl.NumberFormat('id-ID', { style: 'decimal' }).format(number);
 }
 
-// Fungsi untuk memformat input angka menjadi format Rupiah secara real-time
 function formatRupiahInput(input) {
-  let value = input.value.replace(/[^0-9]/g, ''); // Hapus semua karakter non-digit
-  if (value.length > 0) {
-    value = parseInt(value).toString();
-    value = value.replace(/\B(?=(\d{3})+(?!\d))/g, "."); // Tambahkan titik sebagai pemisah ribuan
+  let value = input.value.replace(/[^0-9]/g, '');
+  
+  if (value === '') {
+    input.value = '';
+    return;
   }
-  input.value = value;
+  
+  const numberValue = parseInt(value);
+  
+  input.value = new Intl.NumberFormat('id-ID').format(numberValue);
+  
+  setTimeout(() => {
+    input.setSelectionRange(input.value.length, input.value.length);
+  }, 0);
 }
 
-// Fungsi untuk memeriksa duplikasi kode barang
 function isProductCodeDuplicate(code, currentProductName = null) {
   for (const category in data) {
     if (data.hasOwnProperty(category)) {
       for (const product of data[category]) {
-        // Jika kode barang sama dan bukan produk yang sedang diedit (untuk fungsi edit)
         if (product.code === code && product.name !== currentProductName) {
           return true;
         }
@@ -277,64 +313,54 @@ function isProductCodeDuplicate(code, currentProductName = null) {
   return false;
 }
 
-// ===================== Fungsi Navigasi & Tampilan =====================
-// Fungsi untuk menampilkan tab kategori tertentu
 function showTab(tabName) {
-  // Sembunyikan semua tab content yang aktif dengan animasi
   document.querySelectorAll('.tab-content').forEach(tab => {
     if (tab.classList.contains('active')) {
       tab.style.opacity = '0';
       tab.style.transform = 'translateY(10px)';
       setTimeout(() => {
         tab.classList.remove('active');
-        tab.style.display = 'none'; // Sembunyikan setelah animasi selesai
+        tab.style.display = 'none';
       }, 300);
     }
   });
 
-  // Hapus kelas 'active-category' dari semua tombol kategori di navbar
   document.querySelectorAll('.navbar button:not(.manage-category)').forEach(btn => {
     btn.classList.remove('active-category');
-    btn.style.backgroundColor = ''; // Reset warna background
+    btn.style.backgroundColor = '';
   });
 
-  // Tampilkan tab yang dipilih dengan animasi
   const activeTab = document.getElementById(tabName);
   if (activeTab) {
     setTimeout(() => {
       activeTab.classList.add('active');
-      activeTab.style.display = 'block'; // Tampilkan sebelum animasi dimulai
+      activeTab.style.display = 'block';
       setTimeout(() => {
         activeTab.style.opacity = '1';
         activeTab.style.transform = 'translateY(0)';
-        adjustContentMargin(); // Sesuaikan margin setelah tab aktif ditampilkan
+        adjustContentMargin();
       }, 10);
     }, 300);
   }
 
-  // Tambahkan kelas 'active-category' ke tombol navbar yang sesuai
   const activeButton = document.querySelector(`.navbar button[onclick="showTab('${tabName}')"]`);
   if (activeButton) {
     activeButton.classList.add('active-category');
-    activeButton.style.backgroundColor = '#f25ef3'; // Set warna aktif
+    activeButton.style.backgroundColor = '#f25ef3';
   }
 
-  // Simpan nama tab yang sedang aktif ke localStorage
   localStorage.setItem('activeTab', tabName);
 
-  // Sembunyikan tab hasil pencarian jika sedang ditampilkan
   const searchResultsTab = document.getElementById('searchResultsTab');
   if (searchResultsTab) {
     searchResultsTab.style.display = 'none';
     searchResultsTab.classList.remove('active');
   }
 
-  // Kosongkan input pencarian dan sembunyikan tombol clear
   document.getElementById('searchInput').value = '';
   document.getElementById('clearSearchButton').style.display = 'none';
 }
 
-// Fungsi untuk memuat tab yang terakhir aktif dari localStorage
 function loadActiveTab() {
   const savedTab = localStorage.getItem('activeTab');
   if (savedTab) {
@@ -349,131 +375,129 @@ function loadActiveTab() {
   }
 }
 
-// Fungsi untuk memperbarui tampilan produk di setiap kategori
 function renderProducts() {
-  // Filter kategori yang valid (bukan null atau undefined)
   const validCategories = categories.filter(cat => cat && typeof cat === 'string');
-
   validCategories.forEach(category => {
     const container = document.getElementById(`${category}-list`);
-    if (!container) return; // Lewati jika kontainer tidak ditemukan
-
-    container.innerHTML = ''; // Kosongkan kontainer produk
-
-    // Tampilkan pesan jika tidak ada produk dalam kategori ini
-    if (!data[category] || data[category].length === 0) {
-      container.innerHTML = '<div class="empty-state">Belum ada produk</div>';
+    if (!container) {
+      console.warn(`Kontainer produk untuk kategori "${category}" tidak ditemukan.`);
       return;
     }
 
-    // Render setiap produk dalam kategori
-    data[category].forEach((item, index) => {
-      const card = document.createElement('div');
-      card.className = 'product-card';
+    container.innerHTML = '';
 
-      const isLowStock = item.stock <= item.minStock; // Cek stok rendah
-      const isOutOfStock = item.stock <= 0; // Cek stok habis
+    if (data[category] && Array.isArray(data[category])) {
+      data[category].forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
 
-      const cartItem = cart.find(c => c.name === item.name); // Cari item di keranjang
-      const cartQty = cartItem ? cartItem.qty : 0; // Dapatkan kuantitas di keranjang
+        const isLowStock = item.stock <= item.minStock;
+        const isOutOfStock = item.stock <= 0;
 
-      card.innerHTML = `
-        <div class="product-img-container">
-          ${cartQty > 0 ? `<div class="product-badge">${cartQty}</div>` : ''} <!-- Badge kuantitas di keranjang -->
-          ${item.code ? `<div class="product-code-badge">${item.code}</div>` : ''} <!-- Badge Kode Barang -->
-          <img src="${item.image}" class="product-img" alt="${item.name}" loading="lazy">
-        </div>
-        <div class="product-info">
-          <div>
-            <h3 class="product-name">${item.name}</h3>
-            <div class="product-price">Rp${formatRupiah(item.price)}</div>
-            <div class="stock-info-container">
-              <div class="stock-info">
-                <span class="stock-label">Stok:
-                <span class="stock-value ${isLowStock ? 'low-stock' : ''}">${item.stock}</span></span>
+        const cartItem = cart.find(c => c.name === item.name);
+        const cartQty = cartItem ? cartItem.qty : 0;
+
+        card.innerHTML = `
+          <div class="product-img-container">
+            ${cartQty > 0 ? `<div class="product-badge">${cartQty}</div>` : ''}
+            ${item.code ? `<div class="product-code-badge">${item.code}</div>` : ''}
+            <img src="${item.image}" class="product-img" alt="${item.name}" loading="lazy">
+          </div>
+          <div class="product-info">
+            <div>
+              <h3 class="product-name">${item.name}</h3>
+              <div class="product-price">Rp${formatRupiah(item.price)}</div>
+              <div class="stock-info-container">
+                <div class="stock-info">
+                  <span class="stock-label">Stok:
+                  <span class="stock-value ${isLowStock ? 'low-stock' : ''}">${item.stock}</span></span>
+                </div>
               </div>
             </div>
+            <div class="quantity-controls">
+              <button onclick="decreaseQuantity('${category}', ${index})" ${isOutOfStock ? 'disabled' : ''}>−</button>
+              <input type="text" value="${cartQty}" id="qty-${category}-${index}" readonly />
+              <button onclick="increaseQuantity('${category}', ${index})" ${isOutOfStock ? 'disabled' : ''}>+</button>
+            </div>
+            <div class="button-group">
+              <button class="action-btn btn-edit" onclick="editProduct('${category}', ${index}); event.stopPropagation();">✏️</button>
+              <button class="action-btn btn-delete" onclick="deleteProduct('${category}', ${index}); event.stopPropagation();">🗑️</button>
+            </div>
           </div>
-          <div class="quantity-controls">
-            <button onclick="decreaseQuantity('${category}', ${index})" ${isOutOfStock ? 'disabled' : ''}>−</button>
-            <input type="text" value="${cartQty}" id="qty-${category}-${index}" readonly />
-            <button onclick="increaseQuantity('${category}', ${index})" ${isOutOfStock ? 'disabled' : ''}>+</button>
-          </div>
-          <div class="button-group">
-            <button class="action-btn btn-edit" onclick="editProduct('${category}', ${index}); event.stopPropagation();">✏️</button>
-            <button class="action-btn btn-delete" onclick="deleteProduct('${category}', ${index}); event.stopPropagation();">🗑️</button>
-          </div>
-        </div>
-      `;
+        `;
 
-      // Tambahkan event listener untuk menampilkan/menyembunyikan tombol aksi saat gambar diklik
-      const imgContainer = card.querySelector('.product-img-container');
-      const buttonGroup = card.querySelector('.button-group');
+        const imgContainer = card.querySelector('.product-img-container');
+        const buttonGroup = card.querySelector('.button-group');
 
-      imgContainer.addEventListener('click', (e) => {
-        e.stopPropagation();
+        imgContainer.addEventListener('click', (e) => {
+          e.stopPropagation();
+          
+          document.querySelectorAll('.button-group').forEach(group => {
+            if (group !== buttonGroup && group.style.display === 'flex') {
+              group.style.animation = 'fadeOutDown 0.2s forwards';
+              setTimeout(() => {
+                group.style.display = 'none';
+              }, 200);
+            }
+          });
 
-        // Sembunyikan semua button group lainnya dengan animasi
-        document.querySelectorAll('.button-group').forEach(group => {
-          if (group !== buttonGroup && group.style.display === 'flex') {
-            group.style.animation = 'fadeOutDown 0.2s forwards';
+          if (buttonGroup.style.display === 'flex') {
+            buttonGroup.style.animation = 'fadeOutDown 0.2s forwards';
             setTimeout(() => {
-              group.style.display = 'none';
+              buttonGroup.style.display = 'none';
+            }, 200);
+          } else {
+            buttonGroup.style.display = 'flex';
+            buttonGroup.style.animation = 'fadeInUp 0.2s forwards';
+          }
+        });
+
+        buttonGroup.addEventListener('click', (e) => {
+          if (e.target === buttonGroup) { 
+            e.stopPropagation();
+            buttonGroup.style.animation = 'fadeOutDown 0.2s forwards';
+            setTimeout(() => {
+              buttonGroup.style.display = 'none';
             }, 200);
           }
         });
 
-        // Toggle button group ini dengan animasi
-        if (buttonGroup.style.display === 'flex') {
-          buttonGroup.style.animation = 'fadeOutDown 0.2s forwards';
-          setTimeout(() => {
-            buttonGroup.style.display = 'none';
-          }, 200);
-        } else {
-          buttonGroup.style.display = 'flex';
-          buttonGroup.style.animation = 'fadeInUp 0.2s forwards';
-        }
-      });
+        document.addEventListener('click', (e) => {
+          if (buttonGroup.style.display === 'flex' && !card.contains(e.target)) {
+            buttonGroup.style.animation = 'fadeOutDown 0.2s forwards';
+            setTimeout(() => {
+              buttonGroup.style.display = 'none';
+            }, 200);
+          }
+        });
 
-      // Sembunyikan button group saat klik di luar kartu produk
-      document.addEventListener('click', (e) => {
-        if (!card.contains(e.target) && buttonGroup.style.display === 'flex') {
-          buttonGroup.style.animation = 'fadeOutDown 0.2s forwards';
-          setTimeout(() => {
-            buttonGroup.style.display = 'none';
-          }, 200);
-        }
+        container.appendChild(card);
       });
-
-      container.appendChild(card);
-    });
+    } else {
+      console.warn(`Tidak ada data produk untuk kategori "${category}".`);
+    }
   });
 }
 
-// Fungsi untuk memperbarui navbar dengan kategori terbaru
 function updateNavbarCategories() {
   const navbar = document.querySelector('.navbar');
   const tabContainer = document.getElementById('dynamic-tabs');
 
-  // Kosongkan navbar dan kontainer tab
   navbar.innerHTML = '';
   tabContainer.innerHTML = '';
 
-  // Tambahkan tombol "Kelola Jenis Barang"
   const manageBtn = document.createElement('button');
   manageBtn.className = 'manage-category';
   manageBtn.textContent = '➕ Jenis Barang';
   manageBtn.onclick = showCategoryModal;
   navbar.appendChild(manageBtn);
 
-  // Tambahkan tombol untuk setiap kategori yang valid
   categories.filter(cat => cat && typeof cat === 'string').forEach(category => {
     const button = document.createElement('button');
     button.textContent = capitalizeFirstLetter(category);
-    button.onclick = () => showTab(category); // Panggil showTab saat tombol diklik
-    navbar.insertBefore(button, manageBtn); // Sisipkan sebelum tombol manage
+    button.onclick = () => showTab(category);
+    navbar.insertBefore(button, manageBtn);
 
-    // Buat konten tab untuk kategori jika belum ada
     if (!document.getElementById(category)) {
       const tabContent = document.createElement('div');
       tabContent.id = category;
@@ -496,7 +520,7 @@ function updateNavbarCategories() {
             <img id="imagePreview-${category}" class="preview" style="display: none"/>
           </div>
           <p>Harga</p>
-          <input type="text" name="price" placeholder="Harga (Rp)" required min="100" oninput="formatRupiahInput(this)" />
+          <input type="text" name="price" placeholder="Harga (Rp)" required oninput="formatRupiahInput(this)" inputmode="numeric" pattern="[0-9.]*" />
           <p>Stok</p>
           <input type="number" name="stock" placeholder="Stok Barang" required min="0" />
           <p>Stok Minimum</p>
@@ -508,13 +532,11 @@ function updateNavbarCategories() {
     }
   });
 
-  // Aktifkan tab pertama jika ada kategori
   if (categories.length > 0) {
     showTab(categories[0]);
   }
 }
 
-// Fungsi untuk memfilter produk berdasarkan istilah pencarian
 function filterProducts(searchTerm) {
   searchTerm = searchTerm.toLowerCase().trim();
   const searchInput = document.getElementById('searchInput');
@@ -522,24 +544,20 @@ function filterProducts(searchTerm) {
   const dynamicTabsContainer = document.getElementById('dynamic-tabs');
   let searchResultsTab = document.getElementById('searchResultsTab');
 
-  // Tampilkan/sembunyikan tombol clear pencarian
   if (searchTerm.length > 0) {
     clearSearchButton.style.display = 'block';
   } else {
     clearSearchButton.style.display = 'none';
   }
 
-  // Jika istilah pencarian kosong, kembali ke tab aktif terakhir
   if (!searchTerm) {
     if (searchResultsTab) {
-      searchResultsTab.remove(); // Hapus tab hasil pencarian
+      searchResultsTab.remove();
     }
-    // Sembunyikan semua tab kategori yang ada
     document.querySelectorAll('.tab-content').forEach(tab => {
       tab.style.display = 'none';
       tab.classList.remove('active');
     });
-    // Tampilkan tab yang terakhir aktif
     const savedTab = localStorage.getItem('activeTab');
     if (savedTab && document.getElementById(savedTab)) {
       showTab(savedTab);
@@ -549,13 +567,11 @@ function filterProducts(searchTerm) {
     return;
   }
 
-  // Sembunyikan semua tab kategori yang ada
   document.querySelectorAll('.tab-content').forEach(tab => {
     tab.style.display = 'none';
     tab.classList.remove('active');
   });
 
-  // Buat atau perbarui tab hasil pencarian
   if (!searchResultsTab) {
     searchResultsTab = document.createElement('div');
     searchResultsTab.id = 'searchResultsTab';
@@ -563,18 +579,15 @@ function filterProducts(searchTerm) {
     dynamicTabsContainer.appendChild(searchResultsTab);
   }
 
-  // Aktifkan tab hasil pencarian
   searchResultsTab.classList.add('active');
   searchResultsTab.style.display = 'block';
 
   let productsFoundInSearch = [];
-  // Iterasi melalui semua produk untuk mencari yang cocok
   for (const categoryName in data) {
     if (data.hasOwnProperty(categoryName)) {
       data[categoryName].forEach(product => {
         const productName = product.name.toLowerCase();
         const productCode = product.code ? product.code.toLowerCase() : '';
-        // Cek apakah nama produk atau kode produk cocok dengan istilah pencarian
         if (productName.includes(searchTerm) || productCode.includes(searchTerm)) {
           const originalIndex = data[categoryName].indexOf(product);
           productsFoundInSearch.push({ product, categoryName, originalIndex });
@@ -631,16 +644,13 @@ function filterProducts(searchTerm) {
     searchResultsHtml = '<div class="empty-state search-message">Tidak ditemukan produk yang cocok</div>';
   }
   searchResultsTab.innerHTML = searchResultsHtml;
-  // Pastikan tombol kategori di navbar tidak aktif saat hasil pencarian ditampilkan
   document.querySelectorAll('.navbar button:not(.manage-category)').forEach(btn => {
     btn.classList.remove('active-category');
     btn.style.backgroundColor = '';
   });
-  adjustContentMargin(); // Sesuaikan margin setelah hasil pencarian ditampilkan
+  adjustContentMargin();
 }
 
-// ===================== Fungsi Keranjang Belanja =====================
-// Fungsi untuk membuka/menutup modal keranjang
 function toggleCartModal() {
   const cartModal = document.getElementById('cartModal');
   const overlay = document.querySelector('.sidebar-overlay');
@@ -652,21 +662,19 @@ function toggleCartModal() {
     isCartModalOpen = false;
   } else {
     cartModal.classList.add('open');
-    overlay.style.display = 'none'; // Overlay sidebar tidak diperlukan untuk modal keranjang
+    overlay.style.display = 'none';
     document.body.classList.add('modal-open');
-    renderCartModalContent(); // Render ulang konten keranjang
+    renderCartModalContent();
     isCartModalOpen = true;
   }
 }
 
-// Fungsi untuk menutup modal keranjang
 function closeCartModal() {
   document.getElementById('cartModal').classList.remove('open');
   document.body.classList.remove('modal-open');
   isCartModalOpen = false;
 }
 
-// Fungsi untuk memperbarui badge kuantitas item di tombol keranjang
 function updateCartBadge() {
   const cartBadge = document.getElementById('cartBadge');
   if (!cartBadge) {
@@ -677,7 +685,6 @@ function updateCartBadge() {
   cartBadge.textContent = itemCount;
 }
 
-// Fungsi untuk merender isi modal keranjang
 function renderCartModalContent() {
   const cartContent = document.getElementById('cartModalContent');
   const cartTotal = document.getElementById('cartTotal');
@@ -686,9 +693,11 @@ function renderCartModalContent() {
   if (cart.length === 0) {
     cartContent.innerHTML = '<div style="text-align: center; padding: 20px;">Keranjang kosong</div>';
     cartTotal.textContent = '0';
-    // Sembunyikan bagian quick count jika keranjang kosong
     const quickCountSection = cartModalFooter.querySelector('.quick-count-section');
     if (quickCountSection) quickCountSection.remove();
+
+    const checkoutBtn = cartModalFooter.querySelector('.btn-checkout-cart');
+    if (checkoutBtn) checkoutBtn.remove();
     return;
   }
 
@@ -719,7 +728,6 @@ function renderCartModalContent() {
   cartContent.innerHTML = html;
   cartTotal.textContent = formatRupiah(total);
 
-  // Tambahkan bagian quick count jika belum ada
   let quickCountSection = cartModalFooter.querySelector('.quick-count-section');
   if (!quickCountSection) {
     quickCountSection = document.createElement('div');
@@ -737,51 +745,59 @@ function renderCartModalContent() {
     `;
     cartModalFooter.appendChild(quickCountSection);
   } else {
-    // Reset kembalian saat modal dibuka/dirender ulang
     document.getElementById('quickCountResult').textContent = 'Kembalian: Rp0';
+  }
+
+  let checkoutBtn = cartModalFooter.querySelector('.btn-checkout-cart');
+  if (!checkoutBtn) {
+    checkoutBtn = document.createElement('button');
+    checkoutBtn.className = 'btn-checkout-cart';
+    checkoutBtn.textContent = 'Checkout';
+    checkoutBtn.onclick = showCheckoutConfirmationModal;
+    cartModalFooter.appendChild(checkoutBtn);
   }
 }
 
-// Fungsi untuk menghitung kembalian cepat di modal keranjang
 function calculateQuickChange(amountPaid) {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const change = amountPaid - total;
-  document.getElementById('quickCountResult').textContent = `Kembalian: Rp${formatRupiah(change > 0 ? change : 0)}`;
+  const quickCountResultElement = document.getElementById('quickCountResult');
+  if (change < 0) {
+    quickCountResultElement.innerHTML = `Kembalian: <span style="color: red;">Kurang Rp${formatRupiah(Math.abs(change))}</span>`;
+  } else {
+    quickCountResultElement.textContent = `Kembalian: Rp${formatRupiah(change)}`;
+  }
 }
 
-// Fungsi untuk mengurangi kuantitas item di keranjang
 function decreaseCartItem(index) {
   if (cart[index].qty > 1) {
     cart[index].qty -= 1;
   } else {
-    cart.splice(index, 1); // Hapus item jika kuantitas menjadi 0
+    cart.splice(index, 1);
   }
   saveToIndexedDB(STORE_NAMES.CART, cart).then(() => {
     renderCartModalContent();
     updateCartBadge();
-    renderProducts(); // Perbarui tampilan produk (kuantitas di input)
+    renderProducts();
   });
 }
 
-// Fungsi untuk menghapus item dari keranjang
 function removeCartItem(index) {
   cart.splice(index, 1);
   saveToIndexedDB(STORE_NAMES.CART, cart).then(() => {
     renderCartModalContent();
     updateCartBadge();
-    renderProducts(); // Perbarui tampilan produk (kuantitas di input)
+    renderProducts();
   });
 }
 
-// Fungsi untuk menambah kuantitas produk ke keranjang
 function increaseQuantity(category, index) {
   const item = data[category][index];
-  if (item.stock <= 0) return; // Tidak bisa menambah jika stok habis
+  if (item.stock <= 0) return;
 
   const qtyInput = document.getElementById(`qty-${category}-${index}`);
   const currentQty = parseInt(qtyInput.value);
 
-  // Cek apakah stok cukup
   if (currentQty >= item.stock) {
     showNotification(`Stok tidak cukup! Hanya tersedia ${item.stock} item.`);
     return;
@@ -794,7 +810,6 @@ function increaseQuantity(category, index) {
   showNotification(`Ditambahkan: ${productName} (${qtyInput.value}x)`);
 }
 
-// Fungsi untuk mengurangi kuantitas produk dari keranjang
 function decreaseQuantity(category, index) {
   const qtyInput = document.getElementById(`qty-${category}-${index}`);
   const currentValue = parseInt(qtyInput.value);
@@ -808,7 +823,6 @@ function decreaseQuantity(category, index) {
   }
 }
 
-// Fungsi untuk memperbarui keranjang belanja
 async function updateCart(category, index, qty) {
   try {
     const product = data[category]?.[index];
@@ -819,7 +833,6 @@ async function updateCart(category, index, qty) {
     const cartIndex = cart.findIndex(item => item.name === product.name);
 
     if (qty > 0) {
-      // Buat objek item keranjang
       const cartItem = {
         name: product.name,
         price: product.price,
@@ -830,25 +843,23 @@ async function updateCart(category, index, qty) {
       };
 
       if (cartIndex >= 0) {
-        cart[cartIndex] = cartItem; // Perbarui item yang sudah ada
+        cart[cartIndex] = cartItem;
       } else {
-        cart.push(cartItem); // Tambahkan item baru
+        cart.push(cartItem);
       }
     } else if (cartIndex >= 0) {
-      cart.splice(cartIndex, 1); // Hapus dari keranjang jika kuantitas 0
+      cart.splice(cartIndex, 1);
     }
 
-    await saveToIndexedDB(STORE_NAMES.CART, cart); // Simpan perubahan ke IndexedDB
-    updateCartBadge(); // Perbarui badge keranjang
-    renderProducts(); // Render ulang produk untuk memperbarui tampilan kuantitas
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    updateCartBadge();
+    renderProducts();
   } catch (error) {
     console.error('Gagal memperbarui keranjang:', error);
     showNotification('Gagal memperbarui keranjang');
   }
 }
 
-// ===================== Fungsi Checkout & Pembayaran =====================
-// Fungsi untuk menampilkan modal checkout
 function showCheckoutModal(paymentTypeFromCart = null) {
   if (cart.length === 0) {
     showNotification('Keranjang kosong!');
@@ -858,9 +869,8 @@ function showCheckoutModal(paymentTypeFromCart = null) {
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-  // Reset diskon ke 0 saat modal dibuka
   document.getElementById('discountInput').value = 0;
-  currentGrandTotalAfterDiscount = grandTotal; // Inisialisasi total setelah diskon
+  currentGrandTotalAfterDiscount = grandTotal;
 
   const checkoutSummary = document.getElementById('checkoutSummary');
   checkoutSummary.innerHTML = `
@@ -869,7 +879,7 @@ function showCheckoutModal(paymentTypeFromCart = null) {
       <p>Total Item: ${itemCount}</p>
       <p class="original-total-amount">Subtotal: Rp${formatRupiah(grandTotal)}</p>
     </div>
-    
+
     <div class="payment-input-section">
       <h4>Jumlah Pembayaran (untuk Cash)</h4>
       <div class="quick-payment-buttons">
@@ -878,13 +888,13 @@ function showCheckoutModal(paymentTypeFromCart = null) {
         <button onclick="appendToAmount('20000')">20.000</button>
         <button onclick="appendToAmount('10000')">10.000</button>
       </div>
-      
+
       <div class="manual-input">
         <input type="text" id="manualAmount" placeholder="Masukkan jumlah" value="${currentAmountInput}" oninput="formatRupiahInput(this); calculateChange(parseInt(this.value.replace(/\\./g, '')))">
         <button class="calculator-btn" onclick="deleteLastDigit()">⌫</button>
       </div>
     </div>
-    
+
     <div class="payment-summary" id="paymentSummary" style="display: none;">
       <div class="summary-row">
         <span>Subtotal:</span>
@@ -916,7 +926,6 @@ function showCheckoutModal(paymentTypeFromCart = null) {
     <button class="btn-cancel" onclick="closeCheckoutModal()">✖ Batal</button>
   `;
 
-  // Jika dipanggil dari tombol Cash/Transfer di keranjang, langsung proses checkout
   if (paymentTypeFromCart) {
     modalActions.querySelector('.btn-cash').style.display = 'none';
     modalActions.querySelector('.btn-transfer').style.display = 'none';
@@ -925,18 +934,155 @@ function showCheckoutModal(paymentTypeFromCart = null) {
 
   document.getElementById('checkoutModal').style.display = 'flex';
   document.body.classList.add('modal-open');
-  currentAmountInput = ''; // Reset input manual saat modal dibuka
-  applyDiscount(); // Panggil untuk menginisialisasi tampilan diskon
+  currentAmountInput = '';
+  applyDiscount();
 }
 
-// Fungsi untuk menambahkan angka ke input jumlah pembayaran manual
+function showCheckoutConfirmationModal() {
+  if (cart.length === 0) {
+    showNotification('Keranjang kosong!');
+    return;
+  }
+
+  closeCartModal();
+
+  const checkoutConfirmationModal = document.getElementById('checkoutConfirmationModal');
+  const checkoutConfirmationContent = document.getElementById('checkoutConfirmationContent');
+  const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  document.getElementById('checkoutGrandTotal').textContent = formatRupiah(grandTotal);
+
+  checkoutConfirmationContent.innerHTML = `
+    <div class="checkout-confirmation-header">
+      <h4>Pilih Metode Pembayaran</h4>
+      <p>Total Belanja: <strong>Rp<span id="checkoutGrandTotal">${formatRupiah(grandTotal)}</span></strong></p>
+    </div>
+    <div class="payment-method-options" id="mainPaymentMethodButtons">
+    </div>
+
+    <div id="dynamicTransferMethodContainer" style="display: none;">
+      <label for="transferMethodInput">Pilih Metode Transfer:</label>
+      <div class="payment-method-options" id="dynamicTransferMethodButtons">
+      </div>
+      <input type="text" id="transferDetailsInput" placeholder="No. Rekening/ID E-Wallet/Keterangan" style="display: none;">
+    </div>
+
+    <button class="btn-confirm-payment" id="confirmPaymentButton" style="display:none;">Konfirmasi Pembayaran</button>
+    <button class="btn-cancel-confirmation" onclick="closeCheckoutConfirmationModal()">Batal</button>
+    <button class="btn-manage-payment" onclick="openPaymentMethodModal()">Kelola Metode Pembayaran</button>
+  `;
+
+  renderMainPaymentMethodButtons();
+
+  checkoutConfirmationModal.style.display = 'flex';
+  document.body.classList.add('modal-open');
+
+  selectedPaymentMethod = '';
+  selectedTransferMethod = '';
+  document.getElementById('confirmPaymentButton').style.display = 'none';
+  document.getElementById('transferDetailsInput').style.display = 'none';
+  document.getElementById('dynamicTransferMethodContainer').style.display = 'none';
+}
+
+function renderMainPaymentMethodButtons() {
+  const container = document.getElementById('mainPaymentMethodButtons');
+  container.innerHTML = '';
+
+  ['Cash', 'Transfer'].forEach(method => {
+    const button = document.createElement('button');
+    button.className = `btn-payment-option btn-${method.toLowerCase().replace(/\s/g, '-')}`;
+    button.textContent = method;
+    button.onclick = () => selectPaymentMethod(method);
+    container.appendChild(button);
+  });
+}
+
+function renderDynamicTransferMethods() {
+  const container = document.getElementById('dynamicTransferMethodButtons');
+  container.innerHTML = '';
+
+  if (transferMethods.length === 0) {
+    container.innerHTML = '<p style="text-align: center; font-size: 14px; color: #777;">Belum ada metode transfer. Tambahkan di "Kelola Metode Pembayaran".</p>';
+    return;
+  }
+
+  transferMethods.forEach(method => {
+    const button = document.createElement('button');
+    button.className = `btn-payment-option btn-transfer-dynamic`;
+    button.textContent = method;
+    button.onclick = (event) => selectTransferMethod(method, event.target);
+    container.appendChild(button);
+  });
+}
+
+function selectPaymentMethod(method) {
+  selectedPaymentMethod = method;
+  selectedTransferMethod = '';
+
+  const dynamicTransferMethodContainer = document.getElementById('dynamicTransferMethodContainer');
+  const transferDetailsInput = document.getElementById('transferDetailsInput');
+  const confirmPaymentButton = document.getElementById('confirmPaymentButton');
+
+  document.querySelectorAll('#mainPaymentMethodButtons .btn-payment-option').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const selectedMainButton = document.querySelector(`#mainPaymentMethodButtons .btn-${method.toLowerCase().replace(/\s/g, '-')}`);
+  if (selectedMainButton) {
+    selectedMainButton.classList.add('active');
+  }
+
+  document.querySelectorAll('#dynamicTransferMethodButtons .btn-transfer-dynamic').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  if (method.toLowerCase() === 'cash') {
+    dynamicTransferMethodContainer.style.display = 'none';
+    transferDetailsInput.style.display = 'none';
+    transferDetailsInput.required = false;
+    confirmPaymentButton.style.display = 'block';
+    confirmPaymentButton.onclick = () => processCheckout('Cash', '');
+  } else if (method.toLowerCase() === 'transfer') {
+    dynamicTransferMethodContainer.style.display = 'block';
+    renderDynamicTransferMethods();
+    transferDetailsInput.style.display = 'none';
+    transferDetailsInput.required = false;
+    confirmPaymentButton.style.display = 'none';
+  }
+}
+
+function selectTransferMethod(method, clickedButton) {
+  console.log('selectTransferMethod called with:', method);
+  selectedTransferMethod = method;
+  const confirmPaymentButton = document.getElementById('confirmPaymentButton');
+
+  document.querySelectorAll('#dynamicTransferMethodButtons .btn-transfer-dynamic').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  if (clickedButton) {
+    clickedButton.classList.add('active');
+  }
+
+  console.log('confirmPaymentButton display before:', confirmPaymentButton.style.display);
+  confirmPaymentButton.style.display = 'block';
+  console.log('confirmPaymentButton display after:', confirmPaymentButton.style.display);
+
+  confirmPaymentButton.onclick = () => {
+    console.log('Attempting checkout with method:', selectedTransferMethod);
+    processCheckout(selectedTransferMethod, '');
+  };
+}
+
+function closeCheckoutConfirmationModal() {
+  document.getElementById('checkoutConfirmationModal').style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
 function appendToAmount(number) {
   currentAmountInput += number;
   document.getElementById('manualAmount').value = formatRupiah(parseInt(currentAmountInput.replace(/\./g, '')));
   calculateChange(parseInt(currentAmountInput.replace(/\./g, '')));
 }
 
-// Fungsi untuk menghapus digit terakhir dari input jumlah pembayaran manual
 function deleteLastDigit() {
   currentAmountInput = currentAmountInput.slice(0, -1);
   if (currentAmountInput === '') {
@@ -948,26 +1094,27 @@ function deleteLastDigit() {
   }
 }
 
-// Fungsi untuk menutup modal checkout
 function closeCheckoutModal() {
   document.body.style.overflow = '';
   document.getElementById('checkoutModal').style.display = 'none';
-  currentAmountInput = ''; // Reset input manual
+  currentAmountInput = '';
   document.body.classList.remove('modal-open');
 }
 
-// Fungsi untuk memproses checkout
-async function processCheckout(paymentType) {
-  let amountPaid;
+async function processCheckout(paymentType, paymentDetails = '') {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  let amountPaid = total;
 
-  // Untuk Cash dan Transfer, asumsikan pembayaran penuh
-  amountPaid = total;
+  const grandTotal = total;
+  const finalPaymentMethod = paymentType;
+
+  const confirmMessage = `Apakah Anda ingin membeli item ini seharga Rp${formatRupiah(grandTotal)} dengan metode ${finalPaymentMethod}?`;
+  if (!confirm(confirmMessage)) {
+    return;
+  }
 
   const now = new Date().toLocaleString('id-ID');
-  const grandTotal = total;
 
-  // Perbarui stok untuk setiap item yang terjual
   cart.forEach(item => {
     const product = data[item.category].find(p => p.name === item.name);
     if (product) {
@@ -975,47 +1122,43 @@ async function processCheckout(paymentType) {
     }
   });
 
-  // Tambahkan transaksi ke riwayat penjualan
   sales.push({
     time: now,
-    items: JSON.parse(JSON.stringify(cart)), // Salin objek item
+    items: JSON.parse(JSON.stringify(cart)),
     total: grandTotal,
     amountPaid: amountPaid,
     change: amountPaid - grandTotal,
-    paymentType: paymentType
+    paymentType: finalPaymentMethod,
+    paymentDetails: paymentDetails
   });
 
-  cart = []; // Kosongkan keranjang
+  cart = [];
 
-  // Simpan perubahan ke database
   await Promise.all([
     saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
     saveToIndexedDB(STORE_NAMES.CART, cart),
     saveToIndexedDB(STORE_NAMES.SALES, sales)
   ]);
 
-  // Perbarui UI
   closeCartModal();
   closeCheckoutModal();
+  closeCheckoutConfirmationModal();
   updateCartBadge();
   renderProducts();
 
-  // Jika tabel penjualan sedang ditampilkan, perbarui juga
   if (document.getElementById('salesData').style.display === 'block') {
     renderSalesTable();
   }
 
   document.querySelector('.sidebar-overlay').style.display = 'none';
 
-  showNotification(`Pembelian berhasil! Total: Rp${formatRupiah(grandTotal)} (${paymentType})`);
+  showNotification(`Pembelian berhasil! Total: Rp${formatRupiah(grandTotal)} (${finalPaymentMethod})`);
 }
 
-// Fungsi untuk menerapkan diskon di modal checkout
 function applyDiscount() {
   const discountInput = document.getElementById('discountInput');
   let discountPercentage = parseFloat(discountInput.value);
 
-  // Validasi input diskon
   if (isNaN(discountPercentage) || discountPercentage < 0) {
     discountPercentage = 0;
     discountInput.value = 0;
@@ -1026,144 +1169,252 @@ function applyDiscount() {
 
   const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const discountAmount = grandTotal * (discountPercentage / 100);
-  currentGrandTotalAfterDiscount = grandTotal - discountAmount; // Hitung total setelah diskon
+  currentGrandTotalAfterDiscount = grandTotal - discountAmount;
 
-  // Perbarui tampilan diskon dan total akhir
   document.getElementById('discountPercentageDisplay').textContent = discountPercentage;
   document.getElementById('discountAmountDisplay').textContent = `Rp${formatRupiah(discountAmount)}`;
   document.getElementById('finalTotalAmount').textContent = `Rp${formatRupiah(currentGrandTotalAfterDiscount)}`;
 
-  // Perbarui kembalian jika ada input manual
   const manualAmountInput = document.getElementById('manualAmount');
   if (manualAmountInput && manualAmountInput.value) {
     calculateChange(parseInt(manualAmountInput.value.replace(/\./g, '')));
   } else {
-    // Jika tidak ada input manual, pastikan kembalian direset
     document.getElementById('amountPaid').textContent = `Rp0`;
     document.getElementById('changeAmount').textContent = `Rp0`;
     document.getElementById('paymentSummary').style.display = 'block';
   }
 }
 
-// Fungsi untuk menghitung kembalian di modal checkout
 function calculateChange(amount) {
-  const total = currentGrandTotalAfterDiscount; // Gunakan total setelah diskon
+  const total = currentGrandTotalAfterDiscount;
   const change = amount - total;
 
   document.getElementById('amountPaid').textContent = `Rp${formatRupiah(amount)}`;
   document.getElementById('changeAmount').textContent = `Rp${formatRupiah(change > 0 ? change : 0)}`;
   document.getElementById('paymentSummary').style.display = 'block';
 
-  // Gulir ke bawah untuk melihat hasil perhitungan
   const checkoutSummary = document.getElementById('checkoutSummary');
   checkoutSummary.scrollTop = checkoutSummary.scrollHeight;
 }
 
-// ===================== Fungsi Manajemen Produk =====================
-// Fungsi untuk menghapus produk
 async function deleteProduct(category, index) {
   const productName = data[category][index].name;
   if (confirm(`Hapus barang "${productName}"?`)) {
-    data[category].splice(index, 1); // Hapus dari data produk
+    data[category].splice(index, 1);
 
-    // Hapus dari keranjang jika ada
     for (let i = cart.length - 1; i >= 0; i--) {
       if (cart[i].name === productName) {
         cart.splice(i, 1);
       }
     }
 
-    // Simpan perubahan
     await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
     await saveToIndexedDB(STORE_NAMES.CART, cart);
 
-    renderProducts(); // Perbarui tampilan produk
-    updateCartBadge(); // Perbarui badge keranjang
+    renderProducts();
+    updateCartBadge();
   }
 }
 
-// Fungsi untuk membuka modal edit produk
 function editProduct(category, index) {
   const product = data[category][index];
   document.getElementById('editCategory').value = category;
   document.getElementById('editIndex').value = index;
   document.getElementById('editName').value = product.name;
-  document.getElementById('editCode').value = product.code || ''; // Tampilkan kode barang
-
-  document.getElementById('editPrice').value = product.price.toString();
-  formatRupiahInput(document.getElementById('editPrice')); // Format tampilan harga
-
+  document.getElementById('editCode').value = product.code || '';
+  
+  document.getElementById('editPrice').value = formatRupiah(product.price);
+  
   document.getElementById('editStock').value = product.stock;
   document.getElementById('editMinStock').value = product.minStock;
   document.getElementById('editPreview').src = product.image;
   document.getElementById('editPreview').style.display = 'block';
-  document.getElementById('editImageFile').value = ''; // Reset input file gambar
+  document.getElementById('editImageFile').value = '';
 
-  document.getElementById('editModal').style.display = 'flex'; // Tampilkan modal
+  document.getElementById('editModal').style.display = 'flex';
 }
-
-// Fungsi untuk menyimpan perubahan produk yang diedit
 async function saveEditedProduct(event) {
   event.preventDefault();
   const form = event.target;
-  const category = form.category.value;
-  const index = parseInt(form.index.value);
   const name = form.name.value.trim();
   const code = form.code.value.trim();
+  
+  const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
 
-  const priceString = form.price.value.replace(/\./g, '');
-  const price = parseInt(priceString);
   const stock = parseInt(form.stock.value);
   const minStock = parseInt(form.minStock.value);
-  const fileInput = document.getElementById('editImageFile');
 
-  // Validasi input
   if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0) {
     showNotification("Harap isi semua data dengan benar!");
     return;
   }
 
-  // Validasi duplikasi kode barang
-  const originalProductName = data[category][index].name;
-  if (isProductCodeDuplicate(code, originalProductName)) {
-    showNotification(`Kode barang "${code}" sudah ada. Harap gunakan kode lain!`);
-    return;
-  }
+  const category = document.getElementById('editCategory').value;
+  const index = document.getElementById('editIndex').value;
 
-  // Perbarui data produk
   data[category][index].name = name;
   data[category][index].code = code;
   data[category][index].price = price;
   data[category][index].stock = stock;
   data[category][index].minStock = minStock;
 
-  // Jika ada gambar baru, kompres dan perbarui gambar
-  if (fileInput.files.length > 0) {
-    const file = fileInput.files[0];
-    try {
-      const compressedImage = await compressImage(file);
-      data[category][index].image = compressedImage;
-    } catch (error) {
-      console.error("Gagal mengkompres gambar:", error);
-      showNotification("Gagal mengkompres gambar. Silakan coba lagi.");
-      return;
-    }
-  }
-
-  await saveToIndexedDB(STORE_NAMES.PRODUCTS, data); // Simpan perubahan ke IndexedDB
-
-  renderProducts(); // Perbarui tampilan produk
-  updateCartBadge(); // Perbarui badge keranjang
-  closeEditModal(); // Tutup modal edit
+  await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+  renderProducts();
+  closeEditModal();
   showNotification(`Produk "${name}" berhasil diperbarui!`);
 }
 
-// Fungsi untuk memperbaiki orientasi gambar berdasarkan data EXIF
+async function addProduct(event, category) {
+  event.preventDefault();
+  const form = event.target;
+  const name = form.name.value.trim();
+  const code = form.code.value.trim();
+  
+  const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
+
+  const stock = parseInt(form.stock.value);
+  const minStock = parseInt(form.minStock.value);
+  const fileInput = form.imageFile;
+
+  if (!name || name.length < 2) {
+    showNotification("Nama barang harus diisi (minimal 2 karakter)!");
+    return;
+  }
+  if (!code) {
+    showNotification("Kode barang harus diisi!");
+    return;
+  }
+  if (isProductCodeDuplicate(code)) {
+    showNotification(`Kode barang "${code}" sudah ada. Harap gunakan kode lain!`);
+    return;
+  }
+  if (isNaN(price) || price < 100) {
+    showNotification("Harga harus diisi (minimal Rp100)!");
+    return;
+  }
+  if (isNaN(stock) || stock < 0) {
+    showNotification("Stok harus diisi (tidak boleh negatif)!");
+    return;
+  }
+  if (isNaN(minStock) || minStock < 0) {
+    showNotification("Stok minimum harus diisi (tidak boleh negatif)!");
+    return;
+  }
+  if (!fileInput.files[0]) {
+    showNotification("Gambar produk wajib diupload!");
+    return;
+  }
+
+  try {
+    const compressedImage = await compressImage(fileInput.files[0]);
+
+    const newProduct = {
+      name,
+      code,
+      image: compressedImage,
+      price,
+      stock,
+      minStock,
+      category
+    };
+
+    if (!data[category]) data[category] = [];
+    data[category].push(newProduct);
+
+    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+
+    form.reset();
+    const preview = form.querySelector('img.preview');
+    if (preview) {
+      preview.style.display = 'none';
+      preview.src = '';
+    }
+    renderProducts();
+    showNotification(`Produk "${name}" ditambahkan!`);
+  } catch (error) {
+    console.error("Gagal menambahkan produk:", error);
+    showNotification("Gagal menambahkan produk! " + error.message);
+  }
+}
+
+async function addProduct(event, category) {
+  event.preventDefault();
+  const form = event.target;
+  const name = form.name.value.trim();
+  const code = form.code.value.trim();
+
+  const priceString = form.price.value.replace(/\./g, '').replace(',', '.');
+  const price = parseFloat(priceString);
+
+  const stock = parseInt(form.stock.value);
+  const minStock = parseInt(form.minStock.value);
+  const fileInput = form.imageFile;
+
+  if (!name || name.length < 2) {
+    showNotification("Nama barang harus diisi (minimal 2 karakter)!");
+    return;
+  }
+  if (!code) {
+    showNotification("Kode barang harus diisi!");
+    return;
+  }
+  if (isProductCodeDuplicate(code)) {
+    showNotification(`Kode barang "${code}" sudah ada. Harap gunakan kode lain!`);
+    return;
+  }
+  if (isNaN(price) || price < 100) {
+    showNotification("Harga harus diisi (minimal Rp100)!");
+    return;
+  }
+  if (isNaN(stock) || stock < 0) {
+    showNotification("Stok harus diisi (tidak boleh negatif)!");
+    return;
+  }
+  if (isNaN(minStock) || minStock < 0) {
+    showNotification("Stok minimum harus diisi (tidak boleh negatif)!");
+    return;
+  }
+  if (!fileInput.files[0]) {
+    showNotification("Gambar produk wajib diupload!");
+    return;
+  }
+
+  try {
+    const compressedImage = await compressImage(fileInput.files[0]);
+
+    const newProduct = {
+      name,
+      code,
+      image: compressedImage,
+      price,
+      stock,
+      minStock,
+      category
+    };
+
+    if (!data[category]) data[category] = [];
+    data[category].push(newProduct);
+
+    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+
+    form.reset();
+    const preview = form.querySelector('img.preview');
+    if (preview) {
+      preview.style.display = 'none';
+      preview.src = '';
+    }
+    renderProducts();
+    showNotification(`Produk "${name}" ditambahkan!`);
+  } catch (error) {
+    console.error("Gagal menambahkan produk:", error);
+    showNotification("Gagal menambahkan produk! " + error.message);
+  }
+}
+
 function fixImageOrientation(img, orientation) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   
-  // Set canvas dimensions based on orientation
   if (orientation > 4 && orientation < 9) {
     canvas.width = img.height;
     canvas.height = img.width;
@@ -1172,7 +1423,6 @@ function fixImageOrientation(img, orientation) {
     canvas.height = img.height;
   }
 
-  // Apply transformations based on EXIF orientation
   switch (orientation) {
     case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
     case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
@@ -1187,7 +1437,6 @@ function fixImageOrientation(img, orientation) {
   ctx.drawImage(img, 0, 0);
   img.src = canvas.toDataURL();
 }
-
 
 function previewImage(event, context) {
   const file = event.target.files[0];
@@ -1205,20 +1454,16 @@ function previewImage(event, context) {
   reader.readAsDataURL(file);
 }
 
-
-// Fungsi untuk mengkompres gambar sebelum diunggah
 async function compressImage(file, maxSizeKB = 50) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(event) {
       const img = new Image();
       img.onload = function() {
-        // --- HAPUS SEMUA PROSES EXIF DAN TRANSFORMASI ORIENTASI ---
         let width = img.width;
         let height = img.height;
         const maxDimension = 800;
 
-        // Resize jika terlalu besar
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
             height *= maxDimension / width;
@@ -1254,132 +1499,49 @@ async function compressImage(file, maxSizeKB = 50) {
   });
 }
 
-
-// Fungsi untuk menambahkan produk baru
-async function addProduct(event, category) {
-  event.preventDefault();
-  const form = event.target;
-  const name = form.name.value.trim();
-  const code = form.code.value.trim();
-  const price = parseInt(form.price.value.replace(/\./g, '')); // Hapus titik sebelum konversi
-  const stock = parseInt(form.stock.value);
-  const minStock = parseInt(form.minStock.value);
-  const fileInput = form.imageFile;
-
-  // Validasi input
-  if (!name || name.length < 2) {
-    showNotification("Nama barang harus diisi (minimal 2 karakter)!");
-    return;
-  }
-  if (!code) {
-    showNotification("Kode barang harus diisi!");
-    return;
-  }
-  if (isProductCodeDuplicate(code)) {
-    showNotification(`Kode barang "${code}" sudah ada. Harap gunakan kode lain!`);
-    return;
-  }
-  if (isNaN(price) || price < 100) {
-    showNotification("Harga harus diisi (minimal Rp100)!");
-    return;
-  }
-  if (isNaN(stock) || stock < 0) {
-    showNotification("Stok harus diisi (tidak boleh negatif)!");
-    return;
-  }
-  if (isNaN(minStock) || minStock < 0) {
-    showNotification("Stok minimum harus diisi (tidak boleh negatif)!");
-    return;
-  }
-  if (!fileInput.files[0]) {
-    showNotification("Gambar produk wajib diupload!");
-    return;
-  }
-
-  try {
-    const compressedImage = await compressImage(fileInput.files[0]); // Kompres gambar
-
-    const newProduct = {
-      name,
-      code,
-      image: compressedImage,
-      price,
-      stock,
-      minStock,
-      category
-    };
-
-    if (!data[category]) data[category] = [];
-    data[category].push(newProduct); // Tambahkan produk ke data
-
-    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data); // Simpan ke IndexedDB
-
-    form.reset(); // Reset form
-    const preview = form.querySelector('img.preview');
-    if (preview) {
-      preview.style.display = 'none';
-      preview.src = '';
-    }
-    renderProducts(); // Perbarui tampilan produk
-    showNotification(`Produk "${name}" ditambahkan!`);
-  } catch (error) {
-    console.error("Gagal menambahkan produk:", error);
-    showNotification("Gagal menambahkan produk! " + error.message);
-  }
-}
-
-// Fungsi untuk membuka kamera perangkat
 function openCamera(context) {
   const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
   const input = document.getElementById(inputId);
   if (input) {
-    input.setAttribute('capture', 'environment'); // Gunakan kamera belakang
+    input.setAttribute('capture', 'environment');
     input.click();
   }
 }
 
-// Setup event listener untuk tombol fullscreen
 document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
-// Setup event listener untuk tombol refresh
 document.getElementById('refreshButton').addEventListener('click', function() {
-  location.reload(); // Memuat ulang halaman
+  location.reload();
 });
 
-// Fungsi untuk membuka galeri perangkat
 function openGallery(context) {
   const inputId = context === 'edit' ? 'editImageFile' : `imageInput-${context}`;
   const input = document.getElementById(inputId);
   if (input) {
-    input.removeAttribute('capture'); // Hapus atribut capture
+    input.removeAttribute('capture');
     input.click();
   }
 }
 
-// ===================== Variabel & Fungsi Modal Kategori =====================
-// Fungsi untuk menampilkan modal kategori
 function showCategoryModal() {
-  document.body.style.overflow = 'hidden'; // Mencegah scroll body
-  renderCategoryList(); // Render daftar kategori
-  document.getElementById('categoryModal').style.display = 'flex'; // Tampilkan modal
+  document.body.style.overflow = 'hidden';
+  renderCategoryList();
+  document.getElementById('categoryModal').style.display = 'flex';
 }
 
-// Fungsi untuk menutup modal kategori
 function closeCategoryModal() {
   document.getElementById('categoryModal').style.display = 'none';
   document.body.classList.remove('modal-open');
 }
 
-// Fungsi untuk merender daftar kategori di modal
 function renderCategoryList() {
   const categoryList = document.getElementById('categoryList');
-  categoryList.innerHTML = ''; // Kosongkan daftar
+  categoryList.innerHTML = '';
 
   if (categories.length === 0) {
     categoryList.innerHTML = '<div class="empty-state">Belum ada jenis barang</div>';
     return;
   }
 
-  // Render setiap kategori
   categories.forEach((category, index) => {
     const item = document.createElement('div');
     item.className = 'category-item';
@@ -1396,7 +1558,6 @@ function renderCategoryList() {
   });
 }
 
-// Fungsi untuk mengedit nama kategori
 function editCategoryName(oldCategoryName, index) {
   const categoryItem = document.querySelector(`.category-item[data-category-name="${oldCategoryName}"]`);
   if (!categoryItem) return;
@@ -1404,28 +1565,24 @@ function editCategoryName(oldCategoryName, index) {
   const categoryNameSpan = categoryItem.querySelector(`#categoryName-${index}`);
   const categoryActionsDiv = categoryItem.querySelector('.category-actions');
 
-  const originalName = categoryNameSpan.textContent; // Simpan nama lama untuk pembatalan
+  const originalName = categoryNameSpan.textContent;
 
-  // Ganti span dengan input field
   categoryNameSpan.innerHTML = `
     <input type="text" id="editCategoryInput-${index}" value="${originalName}" />
   `;
 
-  // Ganti tombol aksi dengan tombol simpan/batal
   categoryActionsDiv.innerHTML = `
     <button class="btn-save-category" onclick="saveCategoryName('${oldCategoryName}', ${index})">💾 Simpan</button>
     <button class="btn-cancel-edit" onclick="cancelEditCategoryName('${oldCategoryName}', ${index}, '${originalName}')">✖️ Batal</button>
   `;
 
-  document.getElementById(`editCategoryInput-${index}`).focus(); // Fokuskan pada input
+  document.getElementById(`editCategoryInput-${index}`).focus();
 }
 
-// Fungsi untuk menyimpan nama kategori yang diedit
 async function saveCategoryName(oldCategoryName, index) {
   const newCategoryInput = document.getElementById(`editCategoryInput-${index}`);
   const newCategoryName = newCategoryInput.value.trim().toLowerCase();
 
-  // Validasi input
   if (!newCategoryName) {
     showNotification('Nama jenis barang tidak boleh kosong!');
     return;
@@ -1439,36 +1596,31 @@ async function saveCategoryName(oldCategoryName, index) {
     return;
   }
 
-  // Konfirmasi perubahan
   if (!confirm(`Ubah nama jenis barang dari "${capitalizeFirstLetter(oldCategoryName)}" menjadi "${capitalizeFirstLetter(newCategoryName)}"?`)) {
     cancelEditCategoryName(oldCategoryName, index, capitalizeFirstLetter(oldCategoryName));
     return;
   }
 
   try {
-    // Perbarui nama kategori di array categories
     categories[index] = newCategoryName;
-    categories.sort((a, b) => a.localeCompare(b)); // Urutkan kembali
+    categories.sort((a, b) => a.localeCompare(b));
 
-    // Pindahkan produk dari kategori lama ke kategori baru
     if (data[oldCategoryName]) {
       data[newCategoryName] = data[oldCategoryName];
       delete data[oldCategoryName];
       data[newCategoryName].forEach(product => {
-        product.category = newCategoryName; // Perbarui properti kategori di setiap produk
+        product.category = newCategoryName;
       });
     } else {
       data[newCategoryName] = [];
     }
 
-    // Perbarui kategori item di keranjang
     cart.forEach(item => {
       if (item.category === oldCategoryName) {
         item.category = newCategoryName;
       }
     });
 
-    // Simpan semua perubahan ke IndexedDB
     const categoriesToSave = categories.map(name => ({ name }));
     await Promise.all([
       saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave),
@@ -1476,12 +1628,11 @@ async function saveCategoryName(oldCategoryName, index) {
       saveToIndexedDB(STORE_NAMES.CART, cart)
     ]);
 
-    // Perbarui UI
     updateNavbarCategories();
     renderCategoryList();
     renderProducts();
     updateCartBadge();
-    showTab(newCategoryName); // Pindah ke tab kategori yang baru
+    showTab(newCategoryName);
 
     showNotification(`Jenis barang berhasil diubah menjadi "${capitalizeFirstLetter(newCategoryName)}"!`);
   } catch (error) {
@@ -1490,7 +1641,6 @@ async function saveCategoryName(oldCategoryName, index) {
   }
 }
 
-// Fungsi untuk membatalkan edit nama kategori
 function cancelEditCategoryName(oldCategoryName, index, originalDisplayName) {
   const categoryItem = document.querySelector(`.category-item[data-category-name="${oldCategoryName}"]`);
   if (!categoryItem) return;
@@ -1498,27 +1648,24 @@ function cancelEditCategoryName(oldCategoryName, index, originalDisplayName) {
   const categoryNameSpan = categoryItem.querySelector(`#categoryName-${index}`);
   const categoryActionsDiv = categoryItem.querySelector('.category-actions');
 
-  categoryNameSpan.textContent = originalDisplayName; // Kembalikan teks asli
+  categoryNameSpan.textContent = originalDisplayName;
 
-  // Kembalikan tombol aksi
   categoryActionsDiv.innerHTML = `
     <button class="btn-edit-category" onclick="editCategoryName('${oldCategoryName}', ${index})">✏️ Edit</button>
     <button class="btn-delete-category" onclick="deleteCategory('${oldCategoryName}', ${index})">🗑️ Hapus</button>
   `;
 }
 
-// Fungsi untuk menghapus kategori
 async function deleteCategory(category, index) {
   if (!confirm(`Hapus jenis barang "${capitalizeFirstLetter(category)}"? Semua produk dalam kategori ini juga akan dihapus.`)) {
     return;
   }
 
   try {
-    const removedCategory = categories.splice(index, 1)[0]; // Hapus dari array categories
-    delete data[removedCategory]; // Hapus dari data produk
-    cart = cart.filter(item => item.category !== removedCategory); // Hapus dari keranjang
+    const removedCategory = categories.splice(index, 1)[0];
+    delete data[removedCategory];
+    cart = cart.filter(item => item.category !== removedCategory);
 
-    // Simpan perubahan ke database
     const categoriesToSave = categories.map(name => ({ name }));
     await Promise.all([
       saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave),
@@ -1526,7 +1673,6 @@ async function deleteCategory(category, index) {
       saveToIndexedDB(STORE_NAMES.CART, cart)
     ]);
 
-    // Hapus tab content dan tombol navbar yang terkait
     const tabContent = document.getElementById(removedCategory);
     if (tabContent) tabContent.remove();
     const navbarButtons = Array.from(document.querySelectorAll('.navbar button'));
@@ -1535,13 +1681,11 @@ async function deleteCategory(category, index) {
     );
     if (buttonToRemove) buttonToRemove.remove();
 
-    // Jika kategori yang dihapus sedang aktif, pindah ke kategori pertama atau tampilkan pesan kosong
     const activeTab = document.querySelector('.tab-content.active');
     if (!activeTab || activeTab.id === removedCategory) {
       if (categories.length > 0) {
         showTab(categories[0]);
       } else {
-        // Kosongkan area produk dan navbar jika tidak ada kategori tersisa
         document.getElementById('dynamic-tabs').innerHTML = '<div class="empty-state">Tidak ada jenis barang. Tambahkan jenis barang baru untuk memulai.</div>';
         const navbar = document.querySelector('.navbar');
         navbar.innerHTML = '';
@@ -1553,9 +1697,9 @@ async function deleteCategory(category, index) {
       }
     }
 
-    renderProducts(); // Perbarui tampilan produk
-    updateCartBadge(); // Perbarui badge keranjang
-    renderCategoryList(); // Perbarui daftar kategori di modal
+    renderProducts();
+    updateCartBadge();
+    renderCategoryList();
     showNotification(`Jenis barang "${capitalizeFirstLetter(removedCategory)}" dihapus!`);
   } catch (error) {
     console.error("Gagal menghapus kategori:", error);
@@ -1563,13 +1707,11 @@ async function deleteCategory(category, index) {
   }
 }
 
-// Fungsi untuk menambahkan kategori baru
 function addNewCategory(event) {
   event.preventDefault();
   const input = document.getElementById('newCategoryName');
   const categoryName = input.value.trim().toLowerCase();
 
-  // Validasi input
   if (!categoryName) {
     showNotification('Nama jenis barang tidak boleh kosong!');
     return;
@@ -1580,18 +1722,15 @@ function addNewCategory(event) {
   }
 
   categories.push(categoryName);
-  // --- START OF MODIFICATION ---
-  categories.sort((a, b) => a.localeCompare(b)); // Urutkan kategori secara alfabetis
-  // --- END OF MODIFICATION ---
+  categories.sort((a, b) => a.localeCompare(b));
 
   const categoriesToSave = categories.map(name => ({ name }));
   saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave)
     .then(() => {
-      updateNavbarCategories(); // Perbarui navbar
-      renderCategoryList(); // Perbarui daftar kategori di modal
+      updateNavbarCategories();
+      renderCategoryList();
       showNotification('Jenis barang berhasil ditambahkan!');
-      input.value = ''; // Kosongkan input
-      // Opsional: Langsung tampilkan tab kategori yang baru ditambahkan
+      input.value = '';
       showTab(categoryName);
     })
     .catch(err => {
@@ -1600,8 +1739,6 @@ function addNewCategory(event) {
     });
 }
 
-// ===================== Fungsi Laporan Penjualan & Dashboard =====================
-// Fungsi untuk menampilkan/menyembunyikan tabel penjualan (saat ini tidak digunakan langsung)
 function toggleSales() {
   const salesDiv = document.getElementById('salesData');
   const salesBtn = document.getElementById('salesTab');
@@ -1617,7 +1754,6 @@ function toggleSales() {
   }
 }
 
-// Fungsi untuk merender tabel laporan penjualan
 function renderSalesTable() {
   const salesDiv = document.getElementById('salesData');
 
@@ -1630,9 +1766,9 @@ function renderSalesTable() {
     <table>
       <thead>
         <tr>
-          <th onclick="sortSalesTable('time')">Waktu ▲▼</th>
-          <th onclick="sortSalesTable('name')">Barang ▲▼</th>
-          <th onclick="sortSalesTable('total')">Total Item ▲▼</th>
+          <th id="sortSalesTable('time')">Waktu</th>
+          <th id="sortSalesTable('name')">Barang</th>
+          <th id="sortSalesTable('total')">Total Item</th>
           <th>Aksi</th>
         </tr>
       </thead>
@@ -1647,10 +1783,9 @@ function renderSalesTable() {
     grandTotal += sale.total;
     if (sale.paymentType && sale.paymentType.toLowerCase() === 'cash') {
       totalCash += sale.total;
-    } else if (sale.paymentType && sale.paymentType.toLowerCase() === 'transfer') {
+    } else if (sale.paymentType && sale.paymentType.toLowerCase() !== 'cash') {
       totalTransfer += sale.total;
     }
-    // Kelompokkan item berdasarkan produk dalam penjualan yang sama
     const itemsByProduct = {};
     sale.items.forEach(item => {
       const key = `${item.name}-${item.category}`;
@@ -1667,7 +1802,6 @@ function renderSalesTable() {
       itemsByProduct[key].qty += item.qty;
     });
 
-    // Render setiap produk unik dalam penjualan ini
     Object.values(itemsByProduct).forEach(item => {
       html += `
         <tr class="sales-item-row">
@@ -1684,7 +1818,7 @@ function renderSalesTable() {
           </td>
           <td style="font-weight: bold; text-align: right;">
             <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
-            <small>(${sale.paymentType || '-'})</small>
+            <small>(${sale.paymentType || '-'} ${sale.paymentDetails ? ` - ${sale.paymentDetails}` : ''})</small>
           </td>
           <td class="sales-actions">
             <button class="btn-delete-sales" onclick="deleteSalesItem(${saleIndex}, '${item.name}', '${item.category}')">Hapus</button>
@@ -1710,7 +1844,6 @@ function renderSalesTable() {
   `;
   salesDiv.innerHTML = html;
 
-  // Tambahkan indikator panah ke kolom yang diurutkan
   const headers = salesDiv.querySelectorAll('th[onclick]');
   headers.forEach(header => {
     header.innerHTML = header.innerHTML.replace('▲▼', '').replace('▲', '').replace('▼', '');
@@ -1722,9 +1855,7 @@ function renderSalesTable() {
   });
 }
 
-// Fungsi untuk mengurutkan tabel penjualan
 function sortSalesTable(column) {
-  // Jika mengklik kolom yang sama, balik arah pengurutan
   if (currentSortColumn === column) {
     sortDirection *= -1;
   } else {
@@ -1732,7 +1863,6 @@ function sortSalesTable(column) {
     sortDirection = 1;
   }
 
-  // Gabungkan semua item penjualan ke dalam satu array untuk pengurutan
   let allItems = [];
   sales.forEach(sale => {
     sale.items.forEach(item => {
@@ -1744,7 +1874,6 @@ function sortSalesTable(column) {
     });
   });
 
-  // Urutkan item
   allItems.sort((a, b) => {
     if (column === 'name') {
       return a.name.localeCompare(b.name) * sortDirection;
@@ -1755,7 +1884,6 @@ function sortSalesTable(column) {
     }
   });
 
-  // Kelompokkan kembali item yang sudah diurutkan ke dalam catatan penjualan
   const groupedSales = {};
   allItems.forEach(item => {
     if (!groupedSales[item.time]) {
@@ -1769,12 +1897,11 @@ function sortSalesTable(column) {
     groupedSales[item.time].total += item.price * item.qty;
   });
 
-  const sortedSales = Object.values(groupedSales); // Konversi kembali ke array
+  const sortedSales = Object.values(groupedSales);
 
-  renderSortedSalesTable(sortedSales); // Perbarui tampilan
+  renderSortedSalesTable(sortedSales);
 }
 
-// Fungsi untuk merender tabel penjualan yang sudah diurutkan
 function renderSortedSalesTable(sortedSales) {
   const salesDiv = document.getElementById('salesData');
 
@@ -1859,7 +1986,6 @@ function renderSortedSalesTable(sortedSales) {
   `;
   salesDiv.innerHTML = html;
 
-  // Tambahkan indikator panah ke kolom yang diurutkan
   const headers = salesDiv.querySelectorAll('th[onclick]');
   headers.forEach(header => {
     header.innerHTML = header.innerHTML.replace('▲▼', '').replace('▲', '').replace('▼', '');
@@ -1871,56 +1997,50 @@ function renderSortedSalesTable(sortedSales) {
   });
 }
 
-// Fungsi untuk menghapus item penjualan tertentu dari riwayat
 async function deleteSalesItem(saleIndex, itemName, itemCategory) {
   if (confirm(`Apakah Anda yakin ingin menghapus item "${itemName}" dari record penjualan ini?`)) {
     const saleToModify = sales[saleIndex];
 
     if (saleToModify) {
-      // Filter item yang akan dihapus dari array items dalam transaksi
       saleToModify.items = saleToModify.items.filter(item =>
         !(item.name === itemName && item.category === itemCategory)
       );
 
-      // Jika tidak ada item tersisa dalam transaksi, hapus seluruh transaksi
       if (saleToModify.items.length === 0) {
         sales.splice(saleIndex, 1);
         showNotification(`Transaksi penjualan berhasil dihapus sepenuhnya.`);
       } else {
-        // Jika masih ada item, hitung ulang total transaksi
         saleToModify.total = saleToModify.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        saleToModify.change = saleToModify.amountPaid - saleToModify.total; // Perbarui kembalian
+        saleToModify.change = saleToModify.amountPaid - saleToModify.total;
         showNotification(`Item "${itemName}" berhasil dihapus dari transaksi.`);
       }
 
-      await saveToIndexedDB(STORE_NAMES.SALES, sales); // Simpan perubahan
+      await saveToIndexedDB(STORE_NAMES.SALES, sales);
 
-      renderSalesTable(); // Perbarui tampilan tabel penjualan
-      renderTopProducts(); // Perbarui produk terlaris
+      renderSalesTable();
+      renderTopProducts();
     } else {
       showNotification('Transaksi penjualan tidak ditemukan.');
     }
   }
 }
 
-// Fungsi untuk menghapus seluruh record penjualan
 async function deleteSalesRecord(index) {
   if (confirm("Apakah Anda yakin ingin menghapus record penjualan ini?")) {
-    sales.splice(index, 1); // Hapus record dari array
-    await saveToIndexedDB(STORE_NAMES.SALES, sales); // Simpan perubahan
-    renderSalesTable(); // Perbarui tabel laporan penjualan
-    renderTopProducts(); // Perbarui produk terlaris
+    sales.splice(index, 1);
+    await saveToIndexedDB(STORE_NAMES.SALES, sales);
+    renderSalesTable();
+    renderTopProducts();
   }
 }
 
-// Fungsi untuk menghapus semua data penjualan
 async function deleteAllSalesRecords() {
   if (confirm("Apakah Anda yakin ingin menghapus SEMUA data penjualan?\nIni tidak dapat dibatalkan!")) {
     try {
-      sales = []; // Kosongkan array sales
-      await saveToIndexedDB(STORE_NAMES.SALES, sales); // Simpan array kosong ke IndexedDB
-      renderSalesTable(); // Perbarui tampilan tabel penjualan
-      renderTopProducts(); // Perbarui produk terlaris
+      sales = [];
+      await saveToIndexedDB(STORE_NAMES.SALES, sales);
+      renderSalesTable();
+      renderTopProducts();
       showNotification('Semua data penjualan berhasil dihapus!');
     } catch (error) {
       console.error("Gagal menghapus semua data penjualan:", error);
@@ -1929,7 +2049,6 @@ async function deleteAllSalesRecords() {
   }
 }
 
-// Fungsi untuk mengunduh data penjualan dalam format Excel (.xlsx)
 function downloadExcel() {
   try {
     if (sales.length === 0) {
@@ -1987,38 +2106,30 @@ function downloadExcel() {
   }
 }
 
-// Fungsi untuk menampilkan modal dashboard
 function showDashboard() {
   document.getElementById('dashboardModal').style.display = 'flex';
-  showDashboardTab('salesReport'); // Set tab default ke Laporan Penjualan
-  renderSalesTable(); // Muat data laporan penjualan
-  renderTopProducts(); // Muat data produk terlaris
+  showDashboardTab('salesReport');
+  renderSalesTable();
+  renderTopProducts();
 }
 
-// Fungsi untuk menampilkan tab tertentu di dashboard
 function showDashboardTab(tabId) {
-  // Sembunyikan semua konten tab dashboard
   document.querySelectorAll('.dashboard-tab-content').forEach(tab => {
     tab.classList.remove('active');
   });
 
-  // Hapus kelas 'active' dari semua tombol tab dashboard
   document.querySelectorAll('.dashboard-tab').forEach(tab => {
     tab.classList.remove('active');
   });
 
-  // Tampilkan konten tab yang dipilih
   document.getElementById(tabId + 'Tab').classList.add('active');
 
-  // Tambahkan kelas 'active' ke tombol tab yang diklik
   document.querySelector(`.dashboard-tab[onclick*="showDashboardTab('${tabId}')"]`).classList.add('active');
 }
 
-// Fungsi untuk merender daftar produk terlaris
 function renderTopProducts() {
   const productSales = {};
 
-  // Hitung total penjualan untuk setiap produk
   sales.forEach(sale => {
     sale.items.forEach(item => {
       if (!productSales[item.name]) {
@@ -2036,7 +2147,6 @@ function renderTopProducts() {
     });
   });
 
-  // Konversi ke array dan urutkan berdasarkan total kuantitas terjual
   const sortedProducts = Object.values(productSales).sort((a, b) => b.totalQty - a.totalQty);
 
   const container = document.getElementById('topProductsList');
@@ -2047,7 +2157,6 @@ function renderTopProducts() {
     return;
   }
 
-  // Render setiap produk terlaris
   sortedProducts.forEach((product, index) => {
     const item = document.createElement('div');
     item.className = 'top-product-item';
@@ -2071,38 +2180,35 @@ function renderTopProducts() {
   });
 }
 
-// Fungsi untuk menampilkan tab penjualan di dashboard (saat ini tidak digunakan langsung)
 function showSalesTab() {
   showDashboard();
   showDashboardTab('salesReport');
   renderSalesTable();
 }
 
-// ===================== Fungsi Backup & Restore =====================
-// Fungsi untuk mengekspor semua data aplikasi
 async function exportData() {
   try {
-    // Ambil semua data dari IndexedDB
     const allData = {
       products: await loadFromIndexedDB(STORE_NAMES.PRODUCTS),
       cart: await loadFromIndexedDB(STORE_NAMES.CART),
       sales: await loadFromIndexedDB(STORE_NAMES.SALES),
       categories: await loadFromIndexedDB(STORE_NAMES.CATEGORIES),
-      timestamp: new Date().toISOString() // Tambahkan timestamp
+      preorders: await loadFromIndexedDB(STORE_NAMES.PREORDERS),
+      paymentMethods: await loadFromIndexedDB(STORE_NAMES.PAYMENT_METHODS),
+      transferMethods: await loadFromIndexedDB(STORE_NAMES.TRANSFER_METHODS),
+      timestamp: new Date().toISOString()
     };
 
     const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
-    // Buat elemen anchor untuk download
     const a = document.createElement('a');
     a.href = url;
     a.download = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
 
     document.body.appendChild(a);
-    a.click(); // Picu download
+    a.click();
 
-    // Bersihkan URL objek setelah download
     setTimeout(() => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
@@ -2115,7 +2221,6 @@ async function exportData() {
   }
 }
 
-// Fungsi untuk mengimpor data dari file JSON
 async function importData(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -2126,26 +2231,24 @@ async function importData(event) {
     try {
       const importedData = JSON.parse(e.target.result);
 
-      // Validasi struktur data yang diimpor
       if (!importedData ||
-          !(importedData.products || importedData.cart || importedData.sales || importedData.categories)) {
+          !(importedData.products || importedData.cart || importedData.sales || importedData.categories || importedData.preorders || importedData.paymentMethods || importedData.transferMethods)) {
         throw new Error("Format file tidak valid");
       }
 
-      // Konfirmasi import
       if (!confirm(`Import data dari ${new Date(importedData.timestamp || new Date()).toLocaleString()}? Semua data saat ini akan diganti.`)) {
         return;
       }
 
-      // Kosongkan data yang ada saat ini
       data = {};
       cart = [];
       sales = [];
       categories = [];
+      preOrders = [];
+      paymentMethods = [];
+      transferMethods = [];
 
-      // Proses data yang diimpor
       if (importedData.products && Array.isArray(importedData.products)) {
-        // Rekonstruksi objek data dari array datar
         importedData.products.forEach(product => {
           if (!data[product.category]) {
             data[product.category] = [];
@@ -2166,19 +2269,31 @@ async function importData(event) {
         categories = importedData.categories.map(c => c.name);
       }
 
-      // Simpan data yang diimpor ke IndexedDB
+      if (importedData.preorders && Array.isArray(importedData.preorders)) {
+        preOrders = importedData.preorders;
+      }
+
+      if (importedData.paymentMethods && Array.isArray(importedData.paymentMethods)) {
+        paymentMethods = importedData.paymentMethods.map(m => m.name);
+      }
+
+      if (importedData.transferMethods && Array.isArray(importedData.transferMethods)) {
+        transferMethods = importedData.transferMethods.map(m => m.name);
+      }
+
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
         saveToIndexedDB(STORE_NAMES.CART, cart),
         saveToIndexedDB(STORE_NAMES.SALES, sales),
-        saveToIndexedDB(STORE_NAMES.CATEGORIES, importedData.categories || [])
+        saveToIndexedDB(STORE_NAMES.CATEGORIES, importedData.categories || []),
+        saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders),
+        saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, importedData.paymentMethods || []),
+        saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, importedData.transferMethods || [])
       ]);
 
-      // Muat ulang UI secara paksa
       await loadFromDatabase();
 
       showNotification('Data berhasil di-import!');
-      // closeBackupModal(); // Jika ada modal backup terpisah
     } catch (error) {
       console.error('Gagal import data:', error);
       showNotification('Format file tidak valid! ' + error.message);
@@ -2192,34 +2307,38 @@ async function importData(event) {
   reader.readAsText(file);
 }
 
-// Fungsi untuk menampilkan dialog import file
 function showImportDialog() {
   document.getElementById('importFile').click();
 }
 
-// Fungsi untuk mereset semua data aplikasi
 async function resetAllData() {
   if (confirm("Apakah Anda yakin ingin mereset SEMUA data?\nIni akan menghapus semua produk, penjualan, dan keranjang belanja.")) {
     try {
-      // Kosongkan semua data
       data = {};
       cart = [];
       sales = [];
       categories = [];
+      preOrders = [];
+      paymentMethods = ['Cash', 'Transfer'];
+      transferMethods = ['Bank BCA', 'Bank Mandiri', 'OVO', 'GoPay'];
 
-      // Simpan data kosong ke IndexedDB
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
         saveToIndexedDB(STORE_NAMES.CART, cart),
         saveToIndexedDB(STORE_NAMES.SALES, sales),
-        saveToIndexedDB(STORE_NAMES.CATEGORIES, [])
+        saveToIndexedDB(STORE_NAMES.CATEGORIES, []),
+        saveToIndexedDB(STORE_NAMES.PREORDERS, []),
+        saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, paymentMethods.map(name => ({ name }))),
+        saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })))
       ]);
 
-      // Reset UI
       renderProducts();
       updateCartBadge();
       renderCategoryList();
       updateNavbarCategories();
+      renderPreOrderList();
+      renderDynamicTransferMethods();
+      populateProductSelect();
 
       showNotification('Semua data telah direset!');
     } catch (error) {
@@ -2229,7 +2348,6 @@ async function resetAllData() {
   }
 }
 
-// Fungsi untuk menampilkan/menyembunyikan submenu backup
 function toggleBackupMenu(event) {
   event.preventDefault();
   event.stopPropagation();
@@ -2238,38 +2356,31 @@ function toggleBackupMenu(event) {
   submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
 }
 
-// ===================== Fungsi Modal & Sidebar =====================
-// Fungsi untuk membuka/menutup sidebar
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
   sidebar.classList.toggle('open');
   overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
 
-  // Mencegah scroll body saat sidebar terbuka
   document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
 }
 
-// Fungsi untuk menutup sidebar
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').style.display = 'none';
   document.body.style.overflow = '';
 }
 
-// Fungsi untuk menampilkan modal info/bantuan
 function showHelp() {
   document.getElementById('welcomeModal').style.display = 'flex';
 }
 
-// Fungsi untuk menutup modal selamat datang
 function closeWelcomeModal() {
   document.getElementById('welcomeModal').style.display = 'none';
-  localStorage.setItem('hasSeenWelcome', 'true'); // Set flag bahwa pengguna sudah melihat
+  localStorage.setItem('hasSeenWelcome', 'true');
   document.body.classList.remove('modal-open');
 }
 
-// Fungsi untuk mengecek dan menampilkan modal selamat datang
 function checkWelcomeMessage() {
   const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
   if (!hasSeenWelcome) {
@@ -2277,19 +2388,539 @@ function checkWelcomeMessage() {
   }
 }
 
-// Fungsi untuk menutup modal edit
 function closeEditModal() {
   document.getElementById('editModal').style.display = 'none';
   document.body.classList.remove('modal-open');
 }
 
-// Fungsi untuk menutup modal dashboard
 function closeDashboard() {
   document.getElementById('dashboardModal').style.display = 'none';
   document.body.classList.remove('modal-open');
 }
 
-// Fungsi untuk menutup semua modal yang mungkin terbuka (dipicu oleh tombol Esc)
+function showPreOrder() {
+  document.getElementById('preOrderModal').style.display = 'flex';
+  document.body.classList.add('modal-open');
+  populateProductSelect();
+  showPreOrderTab('addPreOrder');
+  renderPreOrderList();
+}
+
+function closePreOrderModal() {
+  document.getElementById('preOrderModal').style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
+function showPreOrderTab(tabId) {
+  document.querySelectorAll('.preorder-tab-content').forEach(tab => {
+    tab.classList.remove('active');
+    tab.style.display = 'none';
+  });
+  document.querySelectorAll('.preorder-tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+
+  document.getElementById(tabId + 'Tab').classList.add('active');
+  document.getElementById(tabId + 'Tab').style.display = 'block';
+  document.querySelector(`.preorder-tab[onclick*="showPreOrderTab('${tabId}')"]`).classList.add('active');
+
+  if (tabId === 'listPreOrder') {
+    renderPreOrderList();
+  }
+}
+
+function populateProductSelect() {
+  const selectElement = document.getElementById('poProductSelect');
+  selectElement.innerHTML = '';
+
+  const allProducts = Object.values(data).flat();
+
+  if (allProducts.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Tidak ada barang tersedia';
+    option.disabled = true;
+    selectElement.appendChild(option);
+    return;
+  }
+
+  allProducts.forEach(product => {
+    const option = document.createElement('option');
+    option.value = product.name;
+    option.textContent = `${product.name} (Stok: ${product.stock}, Rp${formatRupiah(product.price)})`;
+    option.dataset.price = product.price;
+    option.dataset.category = product.category;
+    option.dataset.image = product.image;
+    option.dataset.code = product.code;
+    selectElement.appendChild(option);
+  });
+
+  if (!selectElement.choices) {
+    selectElement.choices = new Choices(selectElement, {
+      removeItemButton: true,
+      searchEnabled: true,
+      placeholder: true,
+      placeholderValue: 'Pilih barang...',
+      itemSelectText: 'Pilih',
+      noResultsText: 'Tidak ditemukan',
+      noChoicesText: 'Tidak ada pilihan',
+      shouldSort: false
+    });
+
+    selectElement.choices.passedElement.element.addEventListener('change', function(event) {
+      updateSelectedProductsDisplay();
+    });
+  } else {
+    selectElement.choices.setChoices(allProducts.map(product => ({
+      value: product.name,
+      label: `${product.name} (Stok: ${product.stock}, Rp${formatRupiah(product.price)})`,
+      customProperties: {
+        price: product.price,
+        category: product.category,
+        image: product.image,
+        code: product.code
+      }
+    })), 'value', 'label', true);
+  }
+  updateSelectedProductsDisplay();
+
+  const poPaymentMethodSelect = document.getElementById('poPaymentMethod');
+  poPaymentMethodSelect.innerHTML = '';
+  const allPaymentOptions = [...paymentMethods, ...transferMethods];
+  allPaymentOptions.forEach(method => {
+    const option = document.createElement('option');
+    option.value = method;
+    option.textContent = method;
+    poPaymentMethodSelect.appendChild(option);
+  });
+}
+
+function updateSelectedProductsDisplay() {
+  const selectElement = document.getElementById('poProductSelect');
+  const displayDiv = document.getElementById('selectedPoProducts');
+  displayDiv.innerHTML = '';
+  let totalCalculatedPrice = 0;
+
+  const selectedOptions = selectElement.choices ? selectElement.choices.getValue(true) : Array.from(selectElement.selectedOptions).map(opt => opt.value);
+
+  if (selectedOptions.length === 0) {
+    displayDiv.innerHTML = '<p>Belum ada barang yang dipilih.</p>';
+    document.getElementById('poPrice').value = '';
+    return;
+  }
+
+  selectedOptions.forEach(productName => {
+    const product = Object.values(data).flat().find(p => p.name === productName);
+    if (product) {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'selected-product-item';
+      itemDiv.innerHTML = `
+        <span>${product.name}</span>
+        <input type="number" class="po-product-qty" data-product-name="${product.name}" value="1" min="1" oninput="updatePoProductQuantity(this)">
+        <span>x Rp${formatRupiah(product.price)}</span>
+        <button type="button" onclick="removePoProduct('${product.name}')">×</button>
+      `;
+      displayDiv.appendChild(itemDiv);
+      totalCalculatedPrice += product.price * 1;
+    }
+  });
+  document.getElementById('poPrice').value = formatRupiah(totalCalculatedPrice);
+}
+
+function updatePoProductQuantity(inputElement) {
+  const productName = inputElement.dataset.productName;
+  const newQty = parseInt(inputElement.value);
+  if (isNaN(newQty) || newQty < 1) {
+    inputElement.value = 1;
+    return;
+  }
+
+  const product = Object.values(data).flat().find(p => p.name === productName);
+  if (product && newQty > product.stock) {
+    showNotification(`Stok untuk ${product.name} hanya ${product.stock}.`);
+    inputElement.value = product.stock;
+    return;
+  }
+
+  let total = 0;
+  document.querySelectorAll('.selected-product-item').forEach(itemDiv => {
+    const name = itemDiv.querySelector('.po-product-qty').dataset.productName;
+    const qty = parseInt(itemDiv.querySelector('.po-product-qty').value);
+    const prod = Object.values(data).flat().find(p => p.name === name);
+    if (prod) {
+      total += prod.price * qty;
+    }
+  });
+  document.getElementById('poPrice').value = formatRupiah(total);
+}
+
+function removePoProduct(productName) {
+  const selectElement = document.getElementById('poProductSelect');
+  if (selectElement.choices) {
+    selectElement.choices.removeItemsByValue(productName);
+  }
+  updateSelectedProductsDisplay();
+}
+
+function toggleTransferDetails() {
+  const paymentMethod = document.getElementById('poPaymentMethod').value;
+  const transferDetailsInput = document.getElementById('poTransferDetails');
+  if (transferMethods.includes(paymentMethod)) {
+    transferDetailsInput.style.display = 'block';
+    transferDetailsInput.required = true;
+  } else {
+    transferDetailsInput.style.display = 'none';
+    transferDetailsInput.required = false;
+    transferDetailsInput.value = '';
+  }
+}
+ 
+async function addPreOrder(event) {
+  event.preventDefault();
+  event.stopPropagation(); 
+  const form = document.getElementById('addPreOrderForm');
+  const customerName = document.getElementById('poCustomerName').value.trim();
+  const selectedProductsRaw = document.getElementById('poProductSelect').choices.getValue();
+  const paymentMethod = document.getElementById('poPaymentMethod').value;
+  const transferDetails = document.getElementById('poTransferDetails').value.trim();
+  const price = parseInt(document.getElementById('poPrice').value.replace(/\./g, ''));
+  const address = document.getElementById('poAddress').value.trim();
+  const contact = document.getElementById('poContact').value.trim();
+  const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+
+  if (!customerName || selectedProductsRaw.length === 0 || isNaN(price) || price <= 0 || !contact) {
+    showNotification('Harap lengkapi semua data wajib!');
+    return;
+  }
+  if (transferMethods.includes(paymentMethod) && !transferDetails) {
+    showNotification('Detail pembayaran wajib diisi untuk metode transfer!');
+    return;
+  }
+
+  const poItems = [];
+  let totalCalculatedPrice = 0;
+  for (const selectedOption of selectedProductsRaw) {
+    const productName = selectedOption.value;
+    const qtyInput = document.querySelector(`.po-product-qty[data-product-name="${productName}"]`);
+    const qty = qtyInput ? parseInt(qtyInput.value) : 1;
+
+    const product = Object.values(data).flat().find(p => p.name === productName);
+    if (product) {
+      if (qty > product.stock) {
+        showNotification(`Stok untuk ${product.name} hanya ${product.stock}. PreOrder tidak dapat disimpan.`);
+        return;
+      }
+      poItems.push({
+        name: product.name,
+        category: product.category,
+        code: product.code,
+        image: product.image,
+        price: product.price,
+        qty: qty
+      });
+      totalCalculatedPrice += product.price * qty;
+    }
+  }
+
+  if (totalCalculatedPrice !== price) {
+    if (!confirm(`Total harga yang dihitung (${formatRupiah(totalCalculatedPrice)}) berbeda dengan yang dimasukkan (${formatRupiah(price)}). Lanjutkan?`)) {
+      return;
+    }
+  }
+
+  const newPreOrder = {
+    customerName,
+    items: poItems,
+    payment: {
+      method: paymentMethod,
+      details: transferMethods.includes(paymentMethod) ? transferDetails : ''
+    },
+    totalPrice: price,
+    address,
+    contact,
+    deliveryMethod,
+    status: 'Pending',
+    orderDate: new Date().toLocaleString('id-ID')
+  };
+
+  preOrders.push(newPreOrder);
+
+  try {
+    await saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders);
+    showNotification('PreOrder berhasil ditambahkan!');
+    form.reset();
+
+    document.getElementById('poProductSelect').choices.clearStore();
+    document.getElementById('selectedPoProducts').innerHTML = '<p>Belum ada barang yang dipilih.</p>';
+    populateProductSelect();
+
+    document.getElementById('poTransferDetails').style.display = 'none';
+    renderPreOrderList();
+    showPreOrderTab('listPreOrder');
+  } catch (error) {
+    console.error('Gagal menyimpan PreOrder:', error);
+    showNotification('Gagal menyimpan PreOrder!');
+  }
+}
+
+function renderPreOrderList() {
+  const preOrderListDiv = document.getElementById('preOrderList');
+  preOrderListDiv.innerHTML = '';
+
+  if (preOrders.length === 0) {
+    preOrderListDiv.innerHTML = '<div class="empty-state">Belum ada data PreOrder.</div>';
+    return;
+  }
+
+  preOrders.forEach((po, index) => {
+    const poCard = document.createElement('div');
+    poCard.className = `preorder-card ${po.status === 'Completed' ? 'completed' : ''}`;
+    poCard.innerHTML = `
+      <div class="preorder-header">
+        <h4>${po.customerName}</h4>
+        <span class="preorder-status ${po.status.toLowerCase()}">${po.status}</span>
+      </div>
+      <div class="preorder-details">
+        <p><strong>Tanggal Order:</strong> ${po.orderDate}</p>
+        <p><strong>Barang:</strong></p>
+        <ul>
+          ${po.items.map(item => `<li>${item.qty}x ${item.name} (Rp${formatRupiah(item.price)})</li>`).join('')}
+        </ul>
+        <p><strong>Total Harga:</strong> Rp${formatRupiah(po.totalPrice)}</p>
+        <p><strong>Pembayaran:</strong> ${po.payment.method} ${po.payment.details ? `(${po.payment.details})` : ''}</p>
+        ${po.address ? `<p><strong>Alamat:</strong> ${po.address}</p>` : ''}
+        <p><strong>Kontak:</strong> ${po.contact}</p>
+        <p><strong>Pengambilan:</strong> ${po.deliveryMethod}</p>
+      </div>
+      <div class="preorder-actions">
+        ${po.status === 'Pending' ? `<button class="btn-complete-po" onclick="completePreOrder(${index})">✅ Sudah Diambil</button>` : ''}
+        <button class="btn-delete-po" onclick="deletePreOrder(${index})">🗑️ Hapus</button>
+      </div>
+    `;
+    preOrderListDiv.appendChild(poCard);
+  });
+}
+
+async function completePreOrder(index) {
+  if (confirm('Konfirmasi bahwa PreOrder ini sudah diambil? Stok barang akan dikurangi.')) {
+    const po = preOrders[index];
+
+    let stockUpdateSuccess = true;
+    for (const poItem of po.items) {
+      const product = Object.values(data).flat().find(p => p.name === poItem.name && p.category === poItem.category);
+      if (product) {
+        if (product.stock >= poItem.qty) {
+          product.stock -= poItem.qty;
+        } else {
+          showNotification(`Stok ${product.name} tidak cukup (${product.stock} tersedia, ${poItem.qty} dibutuhkan). PreOrder tidak dapat diselesaikan.`);
+          stockUpdateSuccess = false;
+          break;
+        }
+      } else {
+        showNotification(`Produk "${poItem.name}" tidak ditemukan dalam inventaris. PreOrder tidak dapat diselesaikan.`);
+        stockUpdateSuccess = false;
+        break;
+      }
+    }
+
+    if (stockUpdateSuccess) {
+      po.status = 'Completed';
+      po.completionDate = new Date().toLocaleString('id-ID');
+
+      sales.push({
+        time: po.completionDate,
+        items: JSON.parse(JSON.stringify(po.items)),
+        total: po.totalPrice,
+        amountPaid: po.totalPrice,
+        change: 0,
+        paymentType: po.payment.method,
+        isPreOrder: true,
+        preOrderId: po.id
+      });
+
+      await Promise.all([
+        saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders),
+        saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+        saveToIndexedDB(STORE_NAMES.SALES, sales)
+      ]);
+
+      showNotification('PreOrder berhasil diselesaikan dan stok diperbarui!');
+      renderPreOrderList();
+      renderProducts();
+      if (document.getElementById('salesData').style.display === 'block') {
+        renderSalesTable();
+      }
+      renderTopProducts();
+    }
+  }
+}
+
+async function deletePreOrder(index) {
+  if (confirm('Apakah Anda yakin ingin menghapus PreOrder ini?')) {
+    preOrders.splice(index, 1);
+    await saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders);
+    showNotification('PreOrder berhasil dihapus!');
+    renderPreOrderList();
+  }
+}
+
+function openPaymentMethodModal() {
+  document.getElementById('paymentMethodModal').style.display = 'flex';
+  document.body.classList.add('modal-open');
+  renderPaymentMethodList();
+}
+
+function closePaymentMethodModal() {
+  document.getElementById('paymentMethodModal').style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
+function renderPaymentMethodList() {
+  const paymentMethodListDiv = document.getElementById('paymentMethodList');
+  paymentMethodListDiv.innerHTML = '';
+
+  if (transferMethods.length === 0) {
+    paymentMethodListDiv.innerHTML = '<div class="empty-state">Belum ada metode transfer.</div>';
+    return;
+  }
+
+  transferMethods.forEach((method, index) => {
+    const item = document.createElement('div');
+    item.className = 'payment-method-item';
+    item.setAttribute('data-method-name', method);
+
+    item.innerHTML = `
+      <span id="methodName-${index}">${method}</span>
+      <div class="payment-method-actions">
+        <button class="btn-edit-method" onclick="editPaymentMethodName('${method}', ${index})">✏️ Edit</button>
+        <button class="btn-delete-method" onclick="deletePaymentMethod('${method}', ${index})">🗑️ Hapus</button>
+      </div>
+    `;
+    paymentMethodListDiv.appendChild(item);
+  });
+}
+
+async function addNewPaymentMethod(event) {
+  event.preventDefault();
+  const input = document.getElementById('newPaymentMethodName');
+  const newMethodName = input.value.trim();
+
+  if (!newMethodName) {
+    showNotification('Nama metode pembayaran tidak boleh kosong!');
+    return;
+  }
+  if (transferMethods.includes(newMethodName)) {
+    showNotification('Metode pembayaran dengan nama tersebut sudah ada!');
+    return;
+  }
+
+  transferMethods.push(newMethodName);
+  transferMethods.sort((a, b) => a.localeCompare(b));
+
+  try {
+    await saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })));
+    renderPaymentMethodList();
+    showNotification('Metode pembayaran berhasil ditambahkan!');
+    input.value = '';
+    populateProductSelect();
+    renderDynamicTransferMethods();
+  } catch (error) {
+    console.error('Gagal menambahkan metode pembayaran:', error);
+    showNotification('Gagal menambahkan metode pembayaran!');
+  }
+}
+
+function editPaymentMethodName(oldMethodName, index) {
+  const methodItem = document.querySelector(`.payment-method-item[data-method-name="${oldMethodName}"]`);
+  if (!methodItem) return;
+
+  const methodNameSpan = methodItem.querySelector(`#methodName-${index}`);
+  const methodActionsDiv = methodItem.querySelector('.payment-method-actions');
+
+  const originalName = methodNameSpan.textContent;
+
+  methodNameSpan.innerHTML = `
+    <input type="text" id="editMethodInput-${index}" value="${originalName}" />
+  `;
+
+  methodActionsDiv.innerHTML = `
+    <button class="btn-save-method" onclick="savePaymentMethodName('${oldMethodName}', ${index})">💾 Simpan</button>
+    <button class="btn-cancel-edit" onclick="cancelEditPaymentMethodName('${oldMethodName}', ${index}, '${originalName}')">✖️ Batal</button>
+  `;
+
+  document.getElementById(`editMethodInput-${index}`).focus();
+}
+
+async function savePaymentMethodName(oldMethodName, index) {
+  const newMethodInput = document.getElementById(`editMethodInput-${index}`);
+  const newMethodName = newMethodInput.value.trim();
+
+  if (!newMethodName) {
+    showNotification('Nama metode pembayaran tidak boleh kosong!');
+    return;
+  }
+  if (newMethodName === oldMethodName) {
+    cancelEditPaymentMethodName(oldMethodName, index, oldMethodName);
+    return;
+  }
+  if (transferMethods.includes(newMethodName)) {
+    showNotification('Metode pembayaran dengan nama tersebut sudah ada!');
+    return;
+  }
+
+  if (!confirm(`Ubah nama metode pembayaran dari "${oldMethodName}" menjadi "${newMethodName}"?`)) {
+    cancelEditPaymentMethodName(oldMethodName, index, oldMethodName);
+    return;
+  }
+
+  try {
+    transferMethods[index] = newMethodName;
+    transferMethods.sort((a, b) => a.localeCompare(b));
+
+    await saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })));
+    renderPaymentMethodList();
+    showNotification('Metode pembayaran berhasil diubah!');
+    populateProductSelect();
+    renderDynamicTransferMethods();
+  } catch (error) {
+    console.error('Gagal menyimpan perubahan metode pembayaran:', error);
+    showNotification('Gagal menyimpan perubahan metode pembayaran!');
+  }
+}
+
+function cancelEditPaymentMethodName(oldMethodName, index, originalDisplayName) {
+  const methodItem = document.querySelector(`.payment-method-item[data-method-name="${oldMethodName}"]`);
+  if (!methodItem) return;
+
+  const methodNameSpan = methodItem.querySelector(`#methodName-${index}`);
+  const methodActionsDiv = methodItem.querySelector('.payment-method-actions');
+
+  methodNameSpan.textContent = originalDisplayName;
+
+  methodActionsDiv.innerHTML = `
+    <button class="btn-edit-method" onclick="editPaymentMethodName('${oldMethodName}', ${index})">✏️ Edit</button>
+    <button class="btn-delete-method" onclick="deletePaymentMethod('${oldMethodName}', ${index})">🗑️ Hapus</button>
+  `;
+}
+
+async function deletePaymentMethod(methodName, index) {
+  if (!confirm(`Apakah Anda yakin ingin menghapus metode pembayaran "${methodName}"?`)) {
+    return;
+  }
+
+  try {
+    transferMethods.splice(index, 1);
+    await saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })));
+    renderPaymentMethodList();
+    showNotification('Metode pembayaran berhasil dihapus!');
+    populateProductSelect();
+    renderDynamicTransferMethods();
+  } catch (error) {
+    console.error('Gagal menghapus metode pembayaran:', error);
+    showNotification('Gagal menghapus metode pembayaran!');
+  }
+}
+
 function closeAllModals() {
   const modalsToClose = [
     document.getElementById('sidebar'),
@@ -2298,26 +2929,31 @@ function closeAllModals() {
     document.getElementById('editModal'),
     document.getElementById('categoryModal'),
     document.getElementById('dashboardModal'),
-    document.getElementById('checkoutModal')
+    document.getElementById('checkoutModal'),
+    document.getElementById('preOrderModal'),
+    document.getElementById('checkoutConfirmationModal'),
+    document.getElementById('paymentMethodModal')
   ];
 
   modalsToClose.forEach(modal => {
     if (modal) {
       if (modal.classList.contains('sidebar')) {
         closeSidebar();
-      } else if (modal.classList.contains('open')) {
+      } else if (modal.classList.contains('open') || modal.style.display === 'flex') {
         if (modal.id === 'cartModal') closeCartModal();
         else if (modal.id === 'welcomeModal') closeWelcomeModal();
         else if (modal.id === 'editModal') closeEditModal();
         else if (modal.id === 'categoryModal') closeCategoryModal();
         else if (modal.id === 'dashboardModal') closeDashboard();
         else if (modal.id === 'checkoutModal') closeCheckoutModal();
+        else if (modal.id === 'preOrderModal') closePreOrderModal();
+        else if (modal.id === 'checkoutConfirmationModal') closeCheckoutConfirmationModal();
+        else if (modal.id === 'paymentMethodModal') closePaymentMethodModal();
       }
     }
   });
 }
 
-// Fungsi untuk menutup modal saat klik di luar area modal
 function setupModalCloseOnOutsideClick() {
   const modals = [
     document.getElementById('sidebar'),
@@ -2326,8 +2962,11 @@ function setupModalCloseOnOutsideClick() {
     document.getElementById('editModal'),
     document.getElementById('categoryModal'),
     document.getElementById('dashboardModal'),
-    document.getElementById('checkoutModal')
-  ].filter(Boolean); // Filter elemen null jika tidak ada
+    document.getElementById('checkoutModal'),
+    document.getElementById('preOrderModal'),
+    document.getElementById('checkoutConfirmationModal'),
+    document.getElementById('paymentMethodModal')
+  ].filter(Boolean);
 
   document.addEventListener('click', function(event) {
     modals.forEach(element => {
@@ -2344,7 +2983,10 @@ function setupModalCloseOnOutsideClick() {
         event.target.closest('#cartButton') ||
         event.target.closest('.manage-category') ||
         event.target.closest('[onclick*="showDashboard"]') ||
-        event.target.closest('[onclick*="showHelp"]');
+        event.target.closest('[onclick*="showHelp"]') ||
+        event.target.closest('[onclick*="showPreOrder"]') ||
+        event.target.closest('.btn-checkout-cart') ||
+        event.target.closest('.btn-manage-payment');
 
       if (isOpen && !isClickInsideModal && !isClickOnOpenerButton) {
         if (element.id === 'sidebar') {
@@ -2361,14 +3003,18 @@ function setupModalCloseOnOutsideClick() {
           closeDashboard();
         } else if (element.id === 'checkoutModal') {
           closeCheckoutModal();
+        } else if (element.id === 'preOrderModal') {
+          closePreOrderModal();
+        } else if (element.id === 'checkoutConfirmationModal') {
+          closeCheckoutConfirmationModal();
+        } else if (element.id === 'paymentMethodModal') {
+          closePaymentMethodModal();
         }
       }
     });
   });
 }
 
-// ===================== Fungsi Lain-lain =====================
-// Fungsi untuk mengaktifkan/menonaktifkan mode fullscreen
 function toggleFullscreen() {
   const fullscreenButton = document.getElementById('fullscreenButton');
 
@@ -2388,26 +3034,16 @@ function toggleFullscreen() {
   }
 }
 
-// ===================== Event Listener Utama =====================
-// Event listener saat DOM selesai dimuat
 document.addEventListener('DOMContentLoaded', function() {
-  // Inisialisasi database dan muat data
-  openDatabase().then(() => {
-    return loadFromDatabase();
-  }).then(() => {
-    // Perbarui UI setelah data dimuat
+  loadFromDatabase().then(() => {
     adjustContentMargin();
-    updateCartBadge();
-    loadActiveTab(); // Muat tab yang terakhir aktif
 
-    // Setup event listener untuk tombol keranjang
     document.getElementById('cartButton').addEventListener('click', toggleCartModal);
 
-    // Setup event listener untuk tombol clear pencarian
     document.getElementById('clearSearchButton').addEventListener('click', function() {
       document.getElementById('searchInput').value = '';
       this.style.display = 'none';
-      filterProducts(''); // Reset tampilan produk
+      filterProducts('');
       const savedTab = localStorage.getItem('activeTab');
       if (savedTab && document.getElementById(savedTab)) {
         showTab(savedTab);
@@ -2416,15 +3052,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // Setup event listener untuk input pencarian
     document.getElementById('searchInput').addEventListener('input', function() {
       filterProducts(this.value);
     });
 
-    // Setup event listener untuk tombol fullscreen
     document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
 
-    // Deteksi perubahan fullscreen untuk update tombol
     document.addEventListener('fullscreenchange', () => {
       const fullscreenButton = document.getElementById('fullscreenButton');
       if (document.fullscreenElement) {
@@ -2436,14 +3069,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    checkWelcomeMessage(); // Cek dan tampilkan pesan selamat datang
-    setupModalCloseOnOutsideClick(); // Setup penutupan modal saat klik di luar
+    checkWelcomeMessage();
+    setupModalCloseOnOutsideClick();
   }).catch(error => {
-    console.error("Error dalam inisialisasi:", error);
-    showNotification('Gagal memuat data!');
+    console.error("Error dalam inisialisasi DOMContentLoaded:", error);
   });
 
-  // Event listener untuk tombol Esc (menutup semua modal)
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
       closeAllModals();
