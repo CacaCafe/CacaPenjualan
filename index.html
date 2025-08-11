@@ -58,27 +58,30 @@
     <button class="manage-category" onclick="showCategoryModal()">➕ Jenis Barang</button>
   </div>
 
-  <div id="cartModal" class="cart-modal">
-    <div class="cart-modal-header">
-      <span>Keranjang Belanja</span>
-      <button onclick="closeCartModal()" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">×</button>
-    </div>
-    <div class="cart-modal-content" id="cartModalContent">
-    </div>
-    <div class="cart-modal-footer">
-      <div class="cart-total ">Total: Rp<span id="cartTotal">0</span></div>
-      <div class="cart-actions">
-      </div>
-    </div>
+<div class="cart-sidebar-overlay" id="cartSidebarOverlay" onclick="closeCartSidebar()"></div>
+
+<div id="cartModal" class="cart-modal">
+  <div class="cart-modal-header">
+    <h3>Keranjang Belanja</h3>
+    <button class="close-modal" onclick="closeCartModal()">✖</button> 
   </div>
+  <div class="cart-modal-content" id="cartModalContent">
+    <!-- Konten keranjang -->
+  </div>
+  <div class="cart-modal-footer">
+    <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
+    <!-- Quick count section dan checkout button akan ditambahkan oleh JS -->
+  </div>
+</div>
 
   <div id="dynamic-tabs">
   </div>
 
-  <div id="editModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <button class="close-modal" onclick="closeEditModal()">×</button>
-      <h3>Edit Barang</h3> 
+<div id="editModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="close-modal" onclick="closeEditModal()">×</button>
+    <h3>Edit Barang</h3> 
+    <div class="modal-scrollable-content"> <!-- Tambahkan div ini -->
       <form class="edit-form" onsubmit="saveEditedProduct(event)">
         <input type="hidden" name="category" id="editCategory">
         <input type="hidden" name="index" id="editIndex">
@@ -110,8 +113,10 @@
         
         <button type="submit">💾 Simpan Perubahan</button>
       </form>
-    </div>
+    </div> <!-- Tutup div .modal-scrollable-content -->
   </div>
+</div>
+
 
   <div id="categoryModal" class="modal">
     <div class="modal-content" onclick="event.stopPropagation()">
@@ -127,25 +132,32 @@
     </div>
   </div>
 
-  <div id="dashboardModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <button class="close-modal" onclick="closeDashboard()">×</button>
-      <h3>Dashboard Penjualan</h3>
-      <div class="dashboard-tabs">
-        <button class="dashboard-tab active" onclick="showDashboardTab('salesReport')">Laporan Penjualan</button>
-        <button class="dashboard-tab" onclick="showDashboardTab('topProducts')">Produk Terlaris</button>
+<div id="dashboardModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="close-modal" onclick="closeDashboard()">×</button>
+    <h3>Dashboard Penjualan</h3>
+    <div class="dashboard-tabs">
+      <button class="dashboard-tab active" onclick="showDashboardTab('salesReport')">Laporan Penjualan</button>
+      <button class="dashboard-tab" onclick="showDashboardTab('topProducts')">Produk Terlaris</button>
+    </div>
+    <div id="topProductsTab" class="dashboard-tab-content">
+      <h4>Produk Terlaris</h4>
+      <div class="top-products-list" id="topProductsList"></div>
+    </div>
+    <div id="salesReportTab" class="dashboard-tab-content active">
+      <!-- Tambahkan elemen filter tanggal di sini -->
+      <div class="date-filter-container">
+        <label for="startDate">Dari Tanggal:</label>
+        <input type="date" id="startDate">
+        <label for="endDate">Sampai Tanggal:</label>
+        <input type="date" id="endDate">
+        <button onclick="filterSalesByDate()">Filter</button>
+        <button onclick="resetSalesDateFilter()">Reset</button>
       </div>
-      
-      <div id="topProductsTab" class="dashboard-tab-content">
-        <h4>Produk Terlaris</h4>
-        <div class="top-products-list" id="topProductsList"></div>
-      </div>
-      
-      <div id="salesReportTab" class="dashboard-tab-content active">
-        <div id="salesData"></div>
-      </div>
+      <div id="salesData"></div>
     </div>
   </div>
+</div>
 
   <div id="preOrderModal" class="modal-overlay" style="display: none;">
     <div class="modal-content" onclick="event.stopPropagation()">
