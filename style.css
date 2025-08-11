@@ -1,4 +1,4 @@
-/* Styling untuk elemen input file */
+
 input[type="file"]::file-selector-button {
   border-radius: 4px;
   padding: 0 16px;
@@ -254,7 +254,7 @@ input[type="file"]::file-selector-button {
   width: 280px;
   height: 100%;
   background: var(--primary-color);
-  z-index: 1001;
+  z-index: 10000;
   transition: all 0.3s ease;
   overflow: hidden;
   box-shadow: 2px 0 10px rgba(0,0,0,0.2);
@@ -309,7 +309,7 @@ input[type="file"]::file-selector-button {
   right: 0;
   bottom: 0;
   background: rgba(0,0,0,0.5);
-  z-index: 250;
+   z-index: 9999;
   display: none;
 }
 
@@ -380,23 +380,70 @@ input[type="file"]::file-selector-button {
 .cart-modal {
   position: fixed;
   bottom: 90px;
-  right: 20px;
+  right: -350px; 
   width: 350px;
   max-height: 400px;
   background: white;
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  z-index: 9999;
-  display: none;
+  z-index: 10002;
+  display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: right 0.3s ease; 
 }
 
+
 .cart-modal.open {
-  display: flex;
-  animation: slideIn 0.3s ease-out;
+  right: 20px; 
 }
+
+
+@media (min-width: 768px) {
+  .cart-modal {
+    top: var(--total-header-height); 
+    position: fixed;
+    right: -400px;
+    width: 380px;
+    height: calc(100% - var(--total-header-height));
+    max-height: 100%; 
+    border-radius: 0; 
+    box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+    z-index: 1000; 
+    display: flex; 
+    flex-direction: column;
+    transition: right 0.3s ease; 
+  }
+
+  .cart-modal.open {
+    display: flex;
+    right: 0; 
+    animation: none; 
+  }
+
+  .cart-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999; 
+    display: none; 
+  }
+
+
+  #cartButton {
+    display: none;
+  }
+
+ 
+body.cart-sidebar-open {
+  padding-right: 380px; 
+  overflow: hidden; 
+}
+}
+
 
 @keyframes slideIn {
   from {
@@ -449,7 +496,7 @@ input[type="file"]::file-selector-button {
 }
 
 .cart-item-controls button {
-  background: #e74c3c;
+  background: #e74c3c; 
   color: white;
   border: none;
   border-radius: 4px;
@@ -464,6 +511,9 @@ input[type="file"]::file-selector-button {
 
 .cart-item-controls button:first-child {
   background: #3498db;
+}
+.cart-item-controls button:nth-child(2) {
+  background: #28a745;
 }
 
 .cart-total {
@@ -552,7 +602,7 @@ body {
      right: -10px;
      bottom: -10px;
    }
-   
+
 
 .navbar::-webkit-scrollbar {
   display: none;
@@ -611,7 +661,7 @@ body {
   transition: all 0.1s;
 }
 
-.main-navbar button:hover, 
+.main-navbar button:hover,
 .main-navbar button.active {
   background: #f25ef3;
 }
@@ -639,6 +689,7 @@ body {
   padding: 10px 15px;
   height: 60px;
 }
+
 
 .search-container {
   display: flex;
@@ -966,9 +1017,8 @@ body {
 .product-img-container {
   position: relative;
   width: 100%;
-  /* Mengatur rasio 1:1 untuk gambar */
-  padding-top: 100%; /* Ini akan membuat tinggi sama dengan lebar */
-  overflow: hidden; /* Sembunyikan bagian gambar yang keluar dari container */
+  padding-top: 100%;
+  overflow: hidden; 
   margin: 0;
 }
 img {
@@ -976,18 +1026,18 @@ img {
 }
 
 .product-img {
-  position: absolute; /* Posisikan gambar secara absolut di dalam container */
+  position: absolute; 
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Pastikan gambar mengisi seluruh area container tanpa distorsi */
+  object-fit: cover; 
   border-radius: 3px 3px 0 0;
   border: none;
   background: #f5f5f5;
   cursor: pointer;
   transition: transform 0.2s;
-  /* margin-bottom: 5px; */ /* Hapus margin-bottom ini */
+
 }
 
 .product-info {
@@ -998,14 +1048,13 @@ img {
   padding: 1px;
   width: 100%;
   text-align: center;
-  /* Mengurangi padding atau margin di sini untuk merapatkan teks */
-  padding-top: 5px; /* Sesuaikan jika perlu */
+  padding-top: 5px; 
 }
 
 .product-name {
-  margin: 0; /* Hapus margin atas dan bawah */
+  margin: 0; 
   font-size: 17px;
-  min-height: auto; /* Biarkan tinggi menyesuaikan konten */
+  min-height: auto; 
 
 }
 
@@ -1013,18 +1062,18 @@ img {
   font-weight: bold;
   color: var(--accent-color);
   font-size: 15px;
-  margin-top: 0; /* Rapatkan dengan elemen di atasnya */
-  margin-bottom: 2px; /* Tambahkan sedikit margin bawah jika perlu */
+  margin-top: 0; 
+  margin-bottom: 2px; 
 }
 
 .stock-info-container {
   margin-bottom: 5px;
-  margin-top: 0; /* Rapatkan dengan elemen di atasnya */
+  margin-top: 0; 
 }
 
 .stock-info {
   font-size: 12px;
-  margin: 0; /* Hapus margin atas dan bawah */
+  margin: 0; 
   display: flex;
   justify-content: center;
   width: 100%;
@@ -1133,7 +1182,7 @@ form.add-form, form.edit-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  color: #333; 
+  color: #333;
 }
 
 form.add-form input[type="text"],
@@ -1187,6 +1236,16 @@ form.add-form button:hover:not(:disabled),
 form.edit-form button:hover:not(:disabled) {
   background-color: #2ecc71;
 }
+#editModal .modal-content h3 {
+  position: sticky;
+  top: 0; 
+  background-color: #fff;
+  z-index: 10;
+  padding-top: 0;
+  margin-top: 0;
+  padding-bottom: 10px; 
+  border-bottom: 2px solid #eee; 
+}
 
 img.preview {
   width: 100px;
@@ -1237,7 +1296,11 @@ img.preview {
   z-index: 1001;
   max-height: 90vh;
   box-sizing: border-box;
-  overflow-y: auto;
+}
+.modal-scrollable-content {
+  flex-grow: 1; 
+  overflow-y: auto; 
+  padding-right: 10px; 
 }
 
 body.modal-open {
@@ -1257,7 +1320,7 @@ body.modal-open {
   font-size: 16px;
   transition: all 0.3s;
   background-color: white;
-  overflow: hidden; 
+  overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1368,12 +1431,9 @@ body.modal-open {
   border-bottom: 2px solid #eee;
 }
 
-    /* Untuk tombol simpan perubahan di modal edit */
     form.edit-form button[type="submit"] {
-      /* Pastikan tombol memiliki posisi relatif atau absolut */
-      position: relative; /* Penting agar z-index berfungsi */
-      z-index: 10; /* Beri z-index yang cukup tinggi */
-      /* Properti lain yang sudah ada */
+      position: relative; 
+      z-index: 10; 
       background-color: #27ae60;
       color: white;
       border: none;
@@ -1384,10 +1444,10 @@ body.modal-open {
       transition: background-color 0.3s;
       font-size: 16px;
     }
-    /* Jika ada elemen span atau div di dalam tombol untuk teks, pastikan z-index-nya tidak lebih tinggi */
-    form.edit-form button[type="submit"] span { /* Sesuaikan selector jika teks dibungkus elemen lain */
-      position: relative; /* Atau biarkan default jika tidak ada masalah */
-      z-index: 1; /* Pastikan lebih rendah dari tombol induk */
+
+    form.edit-form button[type="submit"] span { 
+      position: relative; 
+      z-index: 1; 
     }
 
 
@@ -1411,7 +1471,7 @@ body.modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
+  z-index: 1100; 
 }
 .close-modal:hover {
   background: #c0392b;
@@ -2648,10 +2708,10 @@ input:checked + .slider .emoji.moon {
 .selected-product-item span {
   font-size: 15px;
   color: #333;
-  white-space: normal; 
+  white-space: normal;
   word-break: break-word;
-  flex-grow: 1; 
-  
+  flex-grow: 1;
+
 }
 .selected-product-item input[type="number"].po-product-qty {
   padding: 3px;
@@ -2882,4 +2942,76 @@ input:checked + .slider .emoji.moon {
   cursor: pointer;
   width: 100%;
   transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+
+
+
+.date-filter-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.date-filter-container label {
+  font-weight: bold;
+  color: var(--professional-dark);
+  white-space: nowrap;
+}
+
+.date-filter-container input[type="date"] {
+  padding: 8px;
+  border: 1px solid var(--professional-border);
+  border-radius: 5px;
+  font-size: 14px;
+  flex-grow: 1;
+  min-width: 120px;
+}
+
+.date-filter-container button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.date-filter-container button:first-of-type { 
+  background-color: var(--professional-primary);
+  color: white;
+}
+
+.date-filter-container button:first-of-type:hover {
+  background-color: #0056b3;
+}
+
+.date-filter-container button:last-of-type {
+  background-color: var(--professional-secondary);
+  color: white;
+}
+
+.date-filter-container button:last-of-type:hover {
+  background-color: #5a6268;
+}
+
+
+@media (max-width: 480px) {
+  .date-filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .date-filter-container label {
+    margin-bottom: 5px;
+  }
+  .date-filter-container input[type="date"],
+  .date-filter-container button {
+    width: 100%;
+  }
 }
