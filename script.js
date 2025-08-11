@@ -653,17 +653,16 @@ function filterProducts(searchTerm) {
 
 function toggleCartModal() {
   const cartModal = document.getElementById('cartModal');
-  const overlay = document.querySelector('.sidebar-overlay');
-
+  const overlay = document.querySelector('.sidebar-overlay'); 
   if (cartModal.classList.contains('open')) {
     cartModal.classList.remove('open');
-    overlay.style.display = 'none';
-    document.body.classList.remove('modal-open');
+    document.body.classList.remove('modal-open'); 
+    document.body.classList.remove('cart-sidebar-open'); 
     isCartModalOpen = false;
   } else {
     cartModal.classList.add('open');
-    overlay.style.display = 'none';
     document.body.classList.add('modal-open');
+    document.body.classList.add('cart-sidebar-open'); 
     renderCartModalContent();
     isCartModalOpen = true;
   }
@@ -671,7 +670,8 @@ function toggleCartModal() {
 
 function closeCartModal() {
   document.getElementById('cartModal').classList.remove('open');
-  document.body.classList.remove('modal-open');
+  document.body.classList.remove('modal-open'); 
+  document.body.classList.remove('cart-sidebar-open'); 
   isCartModalOpen = false;
 }
 
@@ -718,6 +718,7 @@ function renderCartModalContent() {
           <span>Rp${formatRupiah(itemTotal)}</span>
           <div class="cart-item-controls">
             <button onclick="decreaseCartItem(${index})">−</button>
+            <button onclick="increaseCartItem(${index})">+</button>
             <button onclick="removeCartItem(${index})">🗑️</button>
           </div>
         </div>
@@ -853,12 +854,20 @@ async function updateCart(category, index, qty) {
 
     await saveToIndexedDB(STORE_NAMES.CART, cart);
     updateCartBadge();
-    renderProducts();
+    renderProducts(); 
+
+
+    if (isCartModalOpen) { 
+      renderCartModalContent();
+    }
+
+
   } catch (error) {
     console.error('Gagal memperbarui keranjang:', error);
     showNotification('Gagal memperbarui keranjang');
   }
 }
+
 
 function showCheckoutModal(paymentTypeFromCart = null) {
   if (cart.length === 0) {
@@ -2056,8 +2065,18 @@ function downloadExcel() {
       return;
     }
 
+    const reportDate = new Date().toLocaleString('id-ID', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
     const ws_data = [
-      ["Waktu", "Nama Barang", "Kategori", "Kode Barang", "Jumlah", "Harga Satuan", "Total Item", "Total Pembayaran", "Kembalian", "Jenis Pembayaran"]
+      ["Laporan Penjualan - Data Diambil Pada: " + reportDate],
+      [],
+      ["Waktu", "Nama Barang", "Kategori", "Kode Barang", "Jumlah", "Harga Satuan", "Total Item", "Total Pembayaran", "Jenis Pembayaran"]
     ];
 
     sales.forEach(sale => {
@@ -2071,7 +2090,6 @@ function downloadExcel() {
         const itemTotal = itemQty * itemPrice;
 
         const amountPaid = sale.amountPaid || 0;
-        const changeAmount = sale.change || 0;
         const paymentType = sale.paymentType || '-';
 
         ws_data.push([
@@ -2083,7 +2101,6 @@ function downloadExcel() {
           itemPrice,
           itemTotal,
           amountPaid,
-          changeAmount,
           paymentType
         ]);
       });
@@ -2091,9 +2108,25 @@ function downloadExcel() {
 
     const grandTotalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
     ws_data.push([]);
-    ws_data.push(["TOTAL PENJUALAN KESELURUHAN", "", "", "", "", "", "", "", "", grandTotalSales]);
+    ws_data.push(["TOTAL PENJUALAN KESELURUHAN", "", "", "", "", "", "", "", grandTotalSales]);
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    const wscols = [
+      {wch: 20}, // Waktu
+      {wch: 30}, // Nama Barang
+      {wch: 15}, // Kategori
+      {wch: 15}, // Kode Barang
+      {wch: 10}, // Jumlah
+      {wch: 15}, // Harga Satuan
+      {wch: 15}, // Total Item
+      {wch: 20}, // Total Pembayaran
+      {wch: 20}  // Jenis Pembayaran
+    ];
+    ws['!cols'] = wscols;
+
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }]; // Diupdate untuk jumlah kolom baru
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
 
@@ -2105,6 +2138,8 @@ function downloadExcel() {
     showNotification("Gagal mengunduh data Excel!");
   }
 }
+
+
 
 function showDashboard() {
   document.getElementById('dashboardModal').style.display = 'flex';
@@ -2356,14 +2391,15 @@ function toggleBackupMenu(event) {
   submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
 }
 
-function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  const overlay = document.getElementById('sidebarOverlay');
-  sidebar.classList.toggle('open');
-  overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
-
-  document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
-}
+    function toggleSidebar() {
+      closeAllModals(); // Tambahkan baris ini
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('open');
+      overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+      document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    }
+    
 
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
@@ -2921,38 +2957,39 @@ async function deletePaymentMethod(methodName, index) {
   }
 }
 
-function closeAllModals() {
-  const modalsToClose = [
-    document.getElementById('sidebar'),
-    document.getElementById('cartModal'),
-    document.getElementById('welcomeModal'),
-    document.getElementById('editModal'),
-    document.getElementById('categoryModal'),
-    document.getElementById('dashboardModal'),
-    document.getElementById('checkoutModal'),
-    document.getElementById('preOrderModal'),
-    document.getElementById('checkoutConfirmationModal'),
-    document.getElementById('paymentMethodModal')
-  ];
+    function closeAllModals() {
+      const modalsToClose = [
+        document.getElementById('sidebar'), 
+        document.getElementById('cartModal'),
+        document.getElementById('welcomeModal'),
+        document.getElementById('editModal'),
+        document.getElementById('categoryModal'),
+        document.getElementById('dashboardModal'),
+        document.getElementById('checkoutModal'),
+        document.getElementById('preOrderModal'),
+        document.getElementById('checkoutConfirmationModal'),
+        document.getElementById('paymentMethodModal')
+      ];
 
-  modalsToClose.forEach(modal => {
-    if (modal) {
-      if (modal.classList.contains('sidebar')) {
-        closeSidebar();
-      } else if (modal.classList.contains('open') || modal.style.display === 'flex') {
-        if (modal.id === 'cartModal') closeCartModal();
-        else if (modal.id === 'welcomeModal') closeWelcomeModal();
-        else if (modal.id === 'editModal') closeEditModal();
-        else if (modal.id === 'categoryModal') closeCategoryModal();
-        else if (modal.id === 'dashboardModal') closeDashboard();
-        else if (modal.id === 'checkoutModal') closeCheckoutModal();
-        else if (modal.id === 'preOrderModal') closePreOrderModal();
-        else if (modal.id === 'checkoutConfirmationModal') closeCheckoutConfirmationModal();
-        else if (modal.id === 'paymentMethodModal') closePaymentMethodModal();
-      }
+      modalsToClose.forEach(modal => {
+        if (modal) {
+          if (modal.classList.contains('sidebar')) {
+            closeSidebar(); 
+          } else if (modal.classList.contains('open') || modal.style.display === 'flex') {
+            if (modal.id === 'cartModal') closeCartModal();
+            else if (modal.id === 'welcomeModal') closeWelcomeModal();
+            else if (modal.id === 'editModal') closeEditModal();
+            else if (modal.id === 'categoryModal') closeCategoryModal();
+            else if (modal.id === 'dashboardModal') closeDashboard();
+            else if (modal.id === 'checkoutModal') closeCheckoutModal();
+            else if (modal.id === 'preOrderModal') closePreOrderModal();
+            else if (modal.id === 'checkoutConfirmationModal') closeCheckoutConfirmationModal();
+            else if (modal.id === 'paymentMethodModal') closePaymentMethodModal();
+          }
+        }
+      });
     }
-  });
-}
+    
 
 function setupModalCloseOnOutsideClick() {
   const modals = [
@@ -3034,50 +3071,206 @@ function toggleFullscreen() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  loadFromDatabase().then(() => {
-    adjustContentMargin();
+    document.addEventListener('DOMContentLoaded', function() {
+      loadFromDatabase().then(() => {
+        adjustContentMargin();
 
-    document.getElementById('cartButton').addEventListener('click', toggleCartModal);
+        document.getElementById('cartButton').addEventListener('click', toggleCartModal);
 
-    document.getElementById('clearSearchButton').addEventListener('click', function() {
-      document.getElementById('searchInput').value = '';
-      this.style.display = 'none';
-      filterProducts('');
-      const savedTab = localStorage.getItem('activeTab');
-      if (savedTab && document.getElementById(savedTab)) {
-        showTab(savedTab);
-      } else if (categories.length > 0) {
-        showTab(categories[0]);
-      }
+        document.getElementById('clearSearchButton').addEventListener('click', function() {
+          document.getElementById('searchInput').value = '';
+          this.style.display = 'none';
+          filterProducts('');
+          const savedTab = localStorage.getItem('activeTab');
+          if (savedTab && document.getElementById(savedTab)) {
+            showTab(savedTab);
+          } else if (categories.length > 0) {
+            showTab(categories[0]);
+          }
+        });
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+          filterProducts(this.value);
+        });
+
+        document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
+
+        document.addEventListener('fullscreenchange', () => {
+          const fullscreenButton = document.getElementById('fullscreenButton');
+          if (document.fullscreenElement) {
+            fullscreenButton.textContent = '⛶';
+            fullscreenButton.classList.add('fullscreen-active');
+          } else {
+            fullscreenButton.textContent = '⛶';
+            fullscreenButton.classList.remove('fullscreen-active');
+          }
+        });
+
+        checkWelcomeMessage();
+        setupModalCloseOnOutsideClick();
+      }).catch(error => {
+        console.error("Error dalam inisialisasi DOMContentLoaded:", error);
+      });
+
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+          closeAllModals();
+        }
+      });
     });
 
-    document.getElementById('searchInput').addEventListener('input', function() {
-      filterProducts(this.value);
-    });
 
-    document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
 
-    document.addEventListener('fullscreenchange', () => {
-      const fullscreenButton = document.getElementById('fullscreenButton');
-      if (document.fullscreenElement) {
-        fullscreenButton.textContent = '⛶';
-        fullscreenButton.classList.add('fullscreen-active');
-      } else {
-        fullscreenButton.textContent = '⛶';
-        fullscreenButton.classList.remove('fullscreen-active');
-      }
-    });
-
-    checkWelcomeMessage();
-    setupModalCloseOnOutsideClick();
-  }).catch(error => {
-    console.error("Error dalam inisialisasi DOMContentLoaded:", error);
-  });
-
-  document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-      closeAllModals();
+async function increaseCartItem(index) {
+  const itemInCart = cart[index];
+  let originalProduct = null;
+  for (const category in data) {
+    if (data.hasOwnProperty(category)) {
+      originalProduct = data[category].find(p => p.name === itemInCart.name);
+      if (originalProduct) break;
     }
+  }
+
+  if (originalProduct && itemInCart.qty < originalProduct.stock) {
+    itemInCart.qty += 1;
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    renderCartModalContent();
+    updateCartBadge();
+    renderProducts(); 
+  } else if (originalProduct && itemInCart.qty >= originalProduct.stock) {
+    showNotification(`Stok ${itemInCart.name} tidak cukup! Hanya tersedia ${originalProduct.stock} item.`);
+  } else {
+    showNotification(`Produk ${itemInCart.name} tidak ditemukan di inventaris.`);
+  }
+}
+
+function filterSalesByDate() {
+  const startDateInput = document.getElementById('startDate');
+  const endDateInput = document.getElementById('endDate');
+  
+  if (!startDateInput.value && !endDateInput.value) {
+    renderSalesTable();
+    return;
+  }
+
+  const startDate = startDateInput.value ? new Date(startDateInput.value) : null;
+  const endDate = endDateInput.value ? new Date(endDateInput.value) : null;
+
+  if (startDate && endDate && startDate > endDate) {
+    showNotification('Tanggal mulai tidak boleh lebih besar dari tanggal akhir!');
+    return;
+  }
+
+  const filteredSales = sales.filter(sale => {
+    const saleDate = new Date(sale.time.split(',')[0].split('/').reverse().join('-'));
+    
+    if (startDate && endDate) {
+      return saleDate >= startDate && saleDate <= endDate;
+    } else if (startDate) {
+      return saleDate >= startDate;
+    } else if (endDate) {
+      return saleDate <= endDate;
+    }
+    return true;
   });
-});
+
+  renderSortedSalesTable(filteredSales);
+}
+
+function resetSalesDateFilter() {
+  document.getElementById('startDate').value = '';
+  document.getElementById('endDate').value = '';
+  renderSalesTable();
+} 
+
+function renderSortedSalesTable(sortedSales = sales) {
+  const salesDiv = document.getElementById('salesData');
+
+  if (sortedSales.length === 0) {
+    salesDiv.innerHTML = '<div class="empty-state">Belum ada data penjualan</div>';
+    return;
+  }
+
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortSalesTable('time')">Waktu ▲▼</th>
+          <th onclick="sortSalesTable('name')">Barang ▲▼</th>
+          <th onclick="sortSalesTable('total')">Total Item ▲▼</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  let grandTotal = 0;
+  let totalCash = 0;
+  let totalTransfer = 0;
+
+  sortedSales.forEach((sale, saleIndex) => {
+    grandTotal += sale.total;
+    if (sale.paymentType && sale.paymentType.toLowerCase() === 'cash') {
+      totalCash += sale.total;
+    } else if (sale.paymentType && sale.paymentType.toLowerCase() !== 'cash') {
+      totalTransfer += sale.total;
+    }
+
+    const itemsByProduct = {};
+    sale.items.forEach(item => {
+      const key = `${item.name}-${item.category}`;
+      if (!itemsByProduct[key]) {
+        itemsByProduct[key] = {
+          name: item.name,
+          category: item.category,
+          image: item.image,
+          qty: 0,
+          price: item.price,
+          code: item.code
+        };
+      }
+      itemsByProduct[key].qty += item.qty;
+    });
+
+    Object.values(itemsByProduct).forEach(item => {
+      html += `
+        <tr class="sales-item-row">
+          <td>${sale.time}</td>
+          <td>
+            <div class="sales-item">
+              <img src="${item.image}" class="sales-item-img" alt="${item.name}">
+              <div class="sales-item-info">
+                <div class="sales-item-name">${item.name}</div>
+                <div class="sales-item-category">${item.category}</div>
+                <div class="sales-item-code">Kode: <strong>${item.code || '-'}</strong></div>
+              </div>
+            </div>
+          </td>
+          <td style="font-weight: bold; text-align: right;">
+            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
+            <small>(${sale.paymentType || '-'} ${sale.paymentDetails ? ` - ${sale.paymentDetails}` : ''})</small>
+          </td>
+          <td class="sales-actions">
+            <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus</button>
+          </td>
+        </tr>
+      `;
+    });
+  });
+
+  html += `</tbody></table>`;
+  html += `<div class="sales-total">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
+  html += `
+    <div class="sales-total" style="font-size:15px; margin-top:0;">
+      <span style="color:#27ae60;">Total Cash: Rp${formatRupiah(totalCash)}</span><br>
+      <span style="color:#2980b9;">Total Transfer: Rp${formatRupiah(totalTransfer)}</span>
+    </div>
+  `;
+  html += `
+    <div class="sales-actions-bottom">
+      <button id="downloadExcelBtn" onclick="downloadExcel()">⬇️ Download Data</button>
+      <button id="deleteAllSalesBtn" onclick="deleteAllSalesRecords()">🗑️ Hapus Semua Data</button>
+    </div>
+  `;
+  salesDiv.innerHTML = html;
+}
