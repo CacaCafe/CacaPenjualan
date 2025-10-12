@@ -532,10 +532,36 @@ function updateNavbarCategories() {
     }
   });
 
+
   if (categories.length > 0) {
     const newlyAddedCategory = categories[categories.length - 1];
-  
-    showTab(newlyAddedCategory);
+    
+
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+        tab.classList.remove('active');
+        tab.style.opacity = '1'; 
+        tab.style.transform = 'translateY(0)';
+    });
+    document.querySelectorAll('.navbar button:not(.manage-category)').forEach(btn => {
+        btn.classList.remove('active-category');
+        btn.style.backgroundColor = '';
+    });
+    
+
+    const activeTab = document.getElementById(newlyAddedCategory);
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.style.display = 'block';
+        
+        const activeButton = document.querySelector(`.navbar button[onclick="showTab('${newlyAddedCategory}')"]`);
+        if (activeButton) {
+            activeButton.classList.add('active-category');
+            activeButton.style.backgroundColor = '#f25ef3';
+        }
+        localStorage.setItem('activeTab', newlyAddedCategory);
+        adjustContentMargin();
+    }
   }
 }
 
@@ -3277,4 +3303,5 @@ function renderSortedSalesTable(sortedSales = sales) {
   `;
   salesDiv.innerHTML = html;
 }
+
 
