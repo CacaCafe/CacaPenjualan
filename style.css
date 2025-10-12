@@ -1287,8 +1287,8 @@ img.preview {
   background-color: #fff;
   padding: 20px;
   border-radius: 8px;
-  width: 90%;
-  max-width: 800px;
+  width: 100%;
+  max-width: 500px;
   margin: 20px auto;
   position: relative;
   display: flex;
