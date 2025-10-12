@@ -6,8 +6,13 @@ function adjustContentMargin() {
   document.documentElement.style.setProperty('--total-header-height', `${totalHeight}px`);
 }
 
-window.addEventListener('load', adjustContentMargin);
-window.addEventListener('resize', adjustContentMargin);
+
+window.addEventListener('load', () => {
+  adjustContentMargin(); 
+  loadFromDatabase();   
+});
+
+window.addEventListener('resize', adjustContentMargin); 
 
 const DB_NAME = 'penjualan_barang_db';
 const DB_VERSION = 4;
@@ -34,6 +39,7 @@ let sortDirection = 1;
 
 let paymentMethods = [];
 let transferMethods = [];
+
 
 let selectedPaymentMethod = '';
 let selectedTransferMethod = '';
@@ -326,8 +332,7 @@ function showTab(tabName) {
   });
 
   document.querySelectorAll('.navbar button:not(.manage-category)').forEach(btn => {
-    btn.classList.remove('active-category');
-    btn.style.backgroundColor = '';
+ 
   });
 
   const activeTab = document.getElementById(tabName);
@@ -339,14 +344,15 @@ function showTab(tabName) {
         activeTab.style.opacity = '1';
         activeTab.style.transform = 'translateY(0)';
         adjustContentMargin();
-      }, 10);
+        renderProducts(); 
+}, 10);
     }, 300);
   }
 
   const activeButton = document.querySelector(`.navbar button[onclick="showTab('${tabName}')"]`);
   if (activeButton) {
     activeButton.classList.add('active-category');
-    activeButton.style.backgroundColor = '#f25ef3';
+
   }
 
   localStorage.setItem('activeTab', tabName);
@@ -367,7 +373,7 @@ function loadActiveTab() {
     const activeButton = document.querySelector(`.navbar button[onclick="showTab('${savedTab}')"]`);
     if (activeButton) {
       activeButton.classList.add('active-category');
-      activeButton.style.backgroundColor = '#f25ef3';
+
     }
     showTab(savedTab);
   } else if (categories.length > 0) {
@@ -505,7 +511,7 @@ function updateNavbarCategories() {
       tabContent.innerHTML = `
         <div class="product-list" id="${category}-list"></div>
         <form class="add-form" onsubmit="addProduct(event, '${category}')">
-          <b>Tambah barang</b>
+          <b>Tambah barang (${capitalizeFirstLetter(category)}) </b>
           <p>Nama Barang</p>
           <input type="text" name="name" placeholder="Nama Barang" required />
           <p>Kode Barang</p>
@@ -533,36 +539,6 @@ function updateNavbarCategories() {
   });
 
 
-  if (categories.length > 0) {
-    const newlyAddedCategory = categories[categories.length - 1];
-    
-
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.style.display = 'none';
-        tab.classList.remove('active');
-        tab.style.opacity = '1'; 
-        tab.style.transform = 'translateY(0)';
-    });
-    document.querySelectorAll('.navbar button:not(.manage-category)').forEach(btn => {
-        btn.classList.remove('active-category');
-        btn.style.backgroundColor = '';
-    });
-    
-
-    const activeTab = document.getElementById(newlyAddedCategory);
-    if (activeTab) {
-        activeTab.classList.add('active');
-        activeTab.style.display = 'block';
-        
-        const activeButton = document.querySelector(`.navbar button[onclick="showTab('${newlyAddedCategory}')"]`);
-        if (activeButton) {
-            activeButton.classList.add('active-category');
-            activeButton.style.backgroundColor = '#f25ef3';
-        }
-        localStorage.setItem('activeTab', newlyAddedCategory);
-        adjustContentMargin();
-    }
-  }
 }
 
 
@@ -1764,6 +1740,7 @@ function addNewCategory(event) {
 
   const categoriesToSave = categories.map(name => ({ name }));
   saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave)
+  
     .then(() => {
       updateNavbarCategories();
       renderCategoryList();
@@ -1893,52 +1870,7 @@ function renderSalesTable() {
   });
 }
 
-function sortSalesTable(column) {
-  if (currentSortColumn === column) {
-    sortDirection *= -1;
-  } else {
-    currentSortColumn = column;
-    sortDirection = 1;
-  }
 
-  let allItems = [];
-  sales.forEach(sale => {
-    sale.items.forEach(item => {
-      allItems.push({
-        ...item,
-        time: sale.time,
-        total: item.price * item.qty
-      });
-    });
-  });
-
-  allItems.sort((a, b) => {
-    if (column === 'name') {
-      return a.name.localeCompare(b.name) * sortDirection;
-    } else if (column === 'time') {
-      return (new Date(a.time) - new Date(b.time)) * sortDirection;
-    } else {
-      return (a[column] - b[column]) * sortDirection;
-    }
-  });
-
-  const groupedSales = {};
-  allItems.forEach(item => {
-    if (!groupedSales[item.time]) {
-      groupedSales[item.time] = {
-        time: item.time,
-        items: [],
-        total: 0
-      };
-    }
-    groupedSales[item.time].items.push(item);
-    groupedSales[item.time].total += item.price * item.qty;
-  });
-
-  const sortedSales = Object.values(groupedSales);
-
-  renderSortedSalesTable(sortedSales);
-}
 
 function renderSortedSalesTable(sortedSales) {
   const salesDiv = document.getElementById('salesData');
@@ -1952,9 +1884,9 @@ function renderSortedSalesTable(sortedSales) {
     <table>
       <thead>
         <tr>
-          <th onclick="sortSalesTable('time')">Waktu ▲▼</th>
-          <th onclick="sortSalesTable('name')">Barang ▲▼</th>
-          <th onclick="sortSalesTable('total')">Total Item ▲▼</th>
+          <th>Waktu </th>
+          <th>Barang </th>
+          <th>Total Item </th>
           <th>Aksi</th>
         </tr>
       </thead>
@@ -2300,67 +2232,82 @@ async function importData(event) {
         throw new Error("Format file tidak valid");
       }
 
-      if (!confirm(`Import data dari ${new Date(importedData.timestamp || new Date()).toLocaleString()}? Semua data saat ini akan diganti.`)) {
+      if (!confirm(`Gabungkan data dari ${new Date(importedData.timestamp || new Date()).toLocaleString()}? Data yang ada tidak akan dihapus. Lanjutkan?`)) {
         return;
       }
+      
+      // Helper function untuk memeriksa keberadaan produk berdasarkan nama atau kode
+      const findProductByNameOrCode = (name, code) => {
+          return Object.values(data).flat().find(p => p.name.toLowerCase() === name.toLowerCase() || (p.code && code && p.code.toLowerCase() === code.toLowerCase()));
+      };
 
-      data = {};
-      cart = [];
-      sales = [];
-      categories = [];
-      preOrders = [];
-      paymentMethods = [];
-      transferMethods = [];
-
-      if (importedData.products && Array.isArray(importedData.products)) {
-        importedData.products.forEach(product => {
-          if (!data[product.category]) {
-            data[product.category] = [];
-          }
-          data[product.category].push(product);
-        });
-      }
-
-      if (importedData.cart && Array.isArray(importedData.cart)) {
-        cart = importedData.cart;
-      }
-
-      if (importedData.sales && Array.isArray(importedData.sales)) {
-        sales = importedData.sales;
-      }
-
+      // 1. Gabungkan Kategori (menggunakan Set untuk menghindari duplikasi)
       if (importedData.categories && Array.isArray(importedData.categories)) {
-        categories = importedData.categories.map(c => c.name);
+          const importedCategoryNames = importedData.categories.map(c => c.name);
+          const combinedCategories = new Set([...categories, ...importedCategoryNames]);
+          categories = Array.from(combinedCategories).sort((a, b) => a.localeCompare(b));
       }
 
-      if (importedData.preorders && Array.isArray(importedData.preorders)) {
-        preOrders = importedData.preorders;
-      }
+      // 2. Gabungkan Produk dengan penanganan konflik (rename jika duplikat)
+      if (importedData.products && Array.isArray(importedData.products)) {
+          importedData.products.forEach(product => {
+              let newName = product.name;
+              let newCode = product.code;
+              const originalName = product.name;
+              const originalCode = product.code;
+              let counter = 1;
 
+              // Terus cari nama/kode baru sampai unik
+              while (findProductByNameOrCode(newName, newCode)) {
+                  newName = `${counter}_${originalName}`;
+                  newCode = originalCode ? `${counter}_${originalCode}`: `${counter}_${originalName}`; // Beri kode unik juga
+                  counter++;
+              }
+
+              product.name = newName;
+              product.code = newCode;
+              
+              // Tambahkan produk yang sudah unik ke dalam data
+              if (!data[product.category]) {
+                  data[product.category] = [];
+              }
+              data[product.category].push(product);
+          });
+      }
+      
+      // 3. Tambahkan (append) data penjualan, keranjang, dan pre-order
+      if (importedData.sales && Array.isArray(importedData.sales)) sales.push(...importedData.sales);
+      if (importedData.cart && Array.isArray(importedData.cart)) cart.push(...importedData.cart);
+      if (importedData.preorders && Array.isArray(importedData.preorders)) preOrders.push(...importedData.preorders);
+
+      // 4. Gabungkan Metode Pembayaran (menggunakan Set untuk menghindari duplikasi)
       if (importedData.paymentMethods && Array.isArray(importedData.paymentMethods)) {
-        paymentMethods = importedData.paymentMethods.map(m => m.name);
+          const importedPaymentNames = importedData.paymentMethods.map(m => m.name);
+          paymentMethods = Array.from(new Set([...paymentMethods, ...importedPaymentNames]));
       }
-
       if (importedData.transferMethods && Array.isArray(importedData.transferMethods)) {
-        transferMethods = importedData.transferMethods.map(m => m.name);
+          const importedTransferNames = importedData.transferMethods.map(m => m.name);
+          transferMethods = Array.from(new Set([...transferMethods, ...importedTransferNames]));
       }
-
+      
+      // 5. Simpan semua data yang telah digabungkan ke IndexedDB
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
         saveToIndexedDB(STORE_NAMES.CART, cart),
         saveToIndexedDB(STORE_NAMES.SALES, sales),
-        saveToIndexedDB(STORE_NAMES.CATEGORIES, importedData.categories || []),
+        saveToIndexedDB(STORE_NAMES.CATEGORIES, categories.map(name => ({ name }))),
         saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders),
-        saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, importedData.paymentMethods || []),
-        saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, importedData.transferMethods || [])
+        saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, paymentMethods.map(name => ({ name }))),
+        saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })))
       ]);
 
+      // 6. Muat ulang data dari database untuk memperbarui UI
       await loadFromDatabase();
 
-      showNotification('Data berhasil di-import!');
+      showNotification('Data berhasil digabungkan!');
     } catch (error) {
-      console.error('Gagal import data:', error);
-      showNotification('Format file tidak valid! ' + error.message);
+      console.error('Gagal import dan gabungkan data:', error);
+      showNotification('Gagal menggabungkan data! ' + error.message);
     }
   };
 
@@ -2370,7 +2317,6 @@ async function importData(event) {
 
   reader.readAsText(file);
 }
-
 function showImportDialog() {
   document.getElementById('importFile').click();
 }
@@ -3224,9 +3170,9 @@ function renderSortedSalesTable(sortedSales = sales) {
     <table>
       <thead>
         <tr>
-          <th onclick="sortSalesTable('time')">Waktu ▲▼</th>
-          <th onclick="sortSalesTable('name')">Barang ▲▼</th>
-          <th onclick="sortSalesTable('total')">Total Item ▲▼</th>
+          <th >Waktu </th>
+          <th >Barang </th>
+          <th >Total Item </th>
           <th>Aksi</th>
         </tr>
       </thead>
