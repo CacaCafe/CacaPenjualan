@@ -533,9 +533,12 @@ function updateNavbarCategories() {
   });
 
   if (categories.length > 0) {
-    showTab(categories[0]);
+    const newlyAddedCategory = categories[categories.length - 1];
+  
+    showTab(newlyAddedCategory);
   }
 }
+
 
 function filterProducts(searchTerm) {
   searchTerm = searchTerm.toLowerCase().trim();
@@ -3274,3 +3277,4 @@ function renderSortedSalesTable(sortedSales = sales) {
   `;
   salesDiv.innerHTML = html;
 }
+
