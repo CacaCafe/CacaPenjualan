@@ -11,6 +11,24 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Style untuk area paste gambar */
+    .paste-instruction {
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+      margin-top: 8px;
+      border: 2px dashed #ddd;
+      padding: 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .paste-instruction:hover {
+      background-color: #f9f9f9;
+      border-color: #ccc;
+    }
+  </style>
 </head>
 <body>
   <div class="sidebar" id="sidebar">
@@ -67,12 +85,10 @@
     <button class="close-modal" onclick="closeCartModal()">✖</button> 
   </div>
   <div class="cart-modal-content" id="cartModalContent">
-    <!-- Konten keranjang -->
-  </div>
+    </div>
   <div class="cart-modal-footer">
     <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
-    <!-- Quick count section dan checkout button akan ditambahkan oleh JS -->
-  </div>
+    </div>
 </div>
 
   <div id="dynamic-tabs">
@@ -82,7 +98,7 @@
   <div class="modal-content" onclick="event.stopPropagation()">
     <button class="close-modal" onclick="closeEditModal()">×</button>
     <h3>Edit Barang</h3> 
-    <div class="modal-scrollable-content"> <!-- Tambahkan div ini -->
+    <div class="modal-scrollable-content">
       <form class="edit-form" onsubmit="saveEditedProduct(event)">
         <input type="hidden" name="category" id="editCategory">
         <input type="hidden" name="index" id="editIndex">
@@ -94,11 +110,12 @@
         <input type="text" name="code" id="editCode" required>
         
         <label>Gambar Barang</label>
-        <div class="image-input-container">
+        <div class="image-input-container image-paste-area">
           <div class="image-source-buttons">
             <button type="button" class="image-source-btn" onclick="openCamera('edit')">📷 Kamera</button>
             <button type="button" class="image-source-btn" onclick="openGallery('edit')">🖼️ Galeri</button>
           </div>
+          <div class="paste-instruction">atau tempel gambar di sini</div>
           <input type="file" id="editImageFile" name="imageFile" accept="image/*" style="display: none" onchange="previewImage(event, 'edit')">
           <img class="preview" id="editPreview" style="display: none"/>
         </div>
@@ -114,7 +131,7 @@
         
         <button type="submit">💾 Simpan Perubahan</button>
       </form>
-    </div> <!-- Tutup div .modal-scrollable-content -->
+    </div>
   </div>
 </div>
 
@@ -146,7 +163,6 @@
       <div class="top-products-list" id="topProductsList"></div>
     </div>
     <div id="salesReportTab" class="dashboard-tab-content active">
-      <!-- Tambahkan elemen filter tanggal di sini -->
       <div class="date-filter-container">
         <label for="startDate">Dari Tanggal:</label>
         <input type="date" id="startDate">
