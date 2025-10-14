@@ -393,6 +393,7 @@ function renderProducts() {
     container.innerHTML = '';
 
     if (data[category] && Array.isArray(data[category])) {
+      data[category].sort(naturalCompare);
       data[category].forEach((item, index) => {
         const card = document.createElement('div');
         card.className = 'product-card';
@@ -516,12 +517,13 @@ function updateNavbarCategories() {
           <input type="text" name="name" placeholder="Nama Barang" required />
           <p>Kode Barang</p>
           <input type="text" name="code" placeholder="Kode Barang" required />
-          <div class="image-input-container">
+          <div class="image-input-container image-paste-area">
             <div class="image-source-buttons">
               <button type="button" class="image-source-btn" onclick="openCamera('${category}')">📷 Kamera</button>
               <button type="button" class="image-source-btn" onclick="openGallery('${category}')">🖼️ Galeri</button>
             </div>
-            <input type="file" id="imageInput-${category}" name="imageFile" accept="image/*" required
+            <div class="paste-instruction">atau tempel gambar di sini</div>
+            <input type="file" id="imageInput-${category}" name="imageFile" accept="image/*"
               onchange="previewImage(event, '${category}')" style="display: none">
             <img id="imagePreview-${category}" class="preview" style="display: none"/>
           </div>
@@ -1248,108 +1250,48 @@ function editProduct(category, index) {
   document.getElementById('editModal').style.display = 'flex';
 }
 async function saveEditedProduct(event) {
-  event.preventDefault();
-  const form = event.target;
-  const name = form.name.value.trim();
-  const code = form.code.value.trim();
-  
-  const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
+    event.preventDefault();
+    const form = event.target;
+    const name = form.name.value.trim();
+    const code = form.code.value.trim();
+    const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
+    const stock = parseInt(form.stock.value);
+    const minStock = parseInt(form.minStock.value);
 
-  const stock = parseInt(form.stock.value);
-  const minStock = parseInt(form.minStock.value);
+    if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0) {
+        showNotification("Harap isi semua data dengan benar!");
+        return;
+    }
 
-  if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0 || isNaN(minStock) || minStock < 0) {
-    showNotification("Harap isi semua data dengan benar!");
-    return;
-  }
+    const category = document.getElementById('editCategory').value;
+    const index = document.getElementById('editIndex').value;
+    
+    const fileInput = form.imageFile;
+    const file = fileInput.pastedFile || (fileInput.files.length > 0 ? fileInput.files[0] : null);
 
-  const category = document.getElementById('editCategory').value;
-  const index = document.getElementById('editIndex').value;
+    if (file) {
+        try {
+            const compressedImage = await compressImage(file);
+            data[category][index].image = compressedImage;
+        } catch (error) {
+            console.error("Gagal mengompres gambar yang diedit:", error);
+            showNotification("Gagal memproses gambar baru!");
+            return;
+        }
+    }
 
-  data[category][index].name = name;
-  data[category][index].code = code;
-  data[category][index].price = price;
-  data[category][index].stock = stock;
-  data[category][index].minStock = minStock;
-
-  await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-  renderProducts();
-  closeEditModal();
-  showNotification(`Produk "${name}" berhasil diperbarui!`);
-}
-
-async function addProduct(event, category) {
-  event.preventDefault();
-  const form = event.target;
-  const name = form.name.value.trim();
-  const code = form.code.value.trim();
-  
-  const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
-
-  const stock = parseInt(form.stock.value);
-  const minStock = parseInt(form.minStock.value);
-  const fileInput = form.imageFile;
-
-  if (!name || name.length < 2) {
-    showNotification("Nama barang harus diisi (minimal 2 karakter)!");
-    return;
-  }
-  if (!code) {
-    showNotification("Kode barang harus diisi!");
-    return;
-  }
-  if (isProductCodeDuplicate(code)) {
-    showNotification(`Kode barang "${code}" sudah ada. Harap gunakan kode lain!`);
-    return;
-  }
-  if (isNaN(price) || price < 100) {
-    showNotification("Harga harus diisi (minimal Rp100)!");
-    return;
-  }
-  if (isNaN(stock) || stock < 0) {
-    showNotification("Stok harus diisi (tidak boleh negatif)!");
-    return;
-  }
-  if (isNaN(minStock) || minStock < 0) {
-    showNotification("Stok minimum harus diisi (tidak boleh negatif)!");
-    return;
-  }
-  if (!fileInput.files[0]) {
-    showNotification("Gambar produk wajib diupload!");
-    return;
-  }
-
-  try {
-    const compressedImage = await compressImage(fileInput.files[0]);
-
-    const newProduct = {
-      name,
-      code,
-      image: compressedImage,
-      price,
-      stock,
-      minStock,
-      category
-    };
-
-    if (!data[category]) data[category] = [];
-    data[category].push(newProduct);
+    data[category][index].name = name;
+    data[category][index].code = code;
+    data[category][index].price = price;
+    data[category][index].stock = stock;
+    data[category][index].minStock = minStock;
 
     await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
-
-    form.reset();
-    const preview = form.querySelector('img.preview');
-    if (preview) {
-      preview.style.display = 'none';
-      preview.src = '';
-    }
     renderProducts();
-    showNotification(`Produk "${name}" ditambahkan!`);
-  } catch (error) {
-    console.error("Gagal menambahkan produk:", error);
-    showNotification("Gagal menambahkan produk! " + error.message);
-  }
+    closeEditModal();
+    showNotification(`Produk "${name}" berhasil diperbarui!`);
 }
+
 
 async function addProduct(event, category) {
   event.preventDefault();
@@ -1363,6 +1305,8 @@ async function addProduct(event, category) {
   const stock = parseInt(form.stock.value);
   const minStock = parseInt(form.minStock.value);
   const fileInput = form.imageFile;
+  const file = fileInput.pastedFile || (fileInput.files.length > 0 ? fileInput.files[0] : null);
+
 
   if (!name || name.length < 2) {
     showNotification("Nama barang harus diisi (minimal 2 karakter)!");
@@ -1388,13 +1332,13 @@ async function addProduct(event, category) {
     showNotification("Stok minimum harus diisi (tidak boleh negatif)!");
     return;
   }
-  if (!fileInput.files[0]) {
-    showNotification("Gambar produk wajib diupload!");
+  if (!file) {
+    showNotification("Gambar produk wajib diupload atau ditempel!");
     return;
   }
 
   try {
-    const compressedImage = await compressImage(fileInput.files[0]);
+    const compressedImage = await compressImage(file);
 
     const newProduct = {
       name,
@@ -1412,6 +1356,9 @@ async function addProduct(event, category) {
     await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
 
     form.reset();
+    if(fileInput.pastedFile) {
+        delete fileInput.pastedFile;
+    }
     const preview = form.querySelector('img.preview');
     if (preview) {
       preview.style.display = 'none';
@@ -1453,7 +1400,13 @@ function fixImageOrientation(img, orientation) {
 }
 
 function previewImage(event, context) {
-  const file = event.target.files[0];
+  const fileInput = event.target;
+
+  if (fileInput.pastedFile) {
+    delete fileInput.pastedFile;
+  }
+  
+  const file = fileInput.files[0];
   if (!file) return;
 
   const previewId = context === 'edit' ? 'editPreview' : `imagePreview-${context}`;
@@ -2086,7 +2039,7 @@ function downloadExcel() {
     ];
     ws['!cols'] = wscols;
 
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }]; // Diupdate untuk jumlah kolom baru
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }]; 
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
@@ -2236,19 +2189,19 @@ async function importData(event) {
         return;
       }
       
-      // Helper function untuk memeriksa keberadaan produk berdasarkan nama atau kode
+
       const findProductByNameOrCode = (name, code) => {
           return Object.values(data).flat().find(p => p.name.toLowerCase() === name.toLowerCase() || (p.code && code && p.code.toLowerCase() === code.toLowerCase()));
       };
 
-      // 1. Gabungkan Kategori (menggunakan Set untuk menghindari duplikasi)
+
       if (importedData.categories && Array.isArray(importedData.categories)) {
           const importedCategoryNames = importedData.categories.map(c => c.name);
           const combinedCategories = new Set([...categories, ...importedCategoryNames]);
           categories = Array.from(combinedCategories).sort((a, b) => a.localeCompare(b));
       }
 
-      // 2. Gabungkan Produk dengan penanganan konflik (rename jika duplikat)
+   
       if (importedData.products && Array.isArray(importedData.products)) {
           importedData.products.forEach(product => {
               let newName = product.name;
@@ -2257,17 +2210,17 @@ async function importData(event) {
               const originalCode = product.code;
               let counter = 1;
 
-              // Terus cari nama/kode baru sampai unik
+          
               while (findProductByNameOrCode(newName, newCode)) {
                   newName = `${counter}_${originalName}`;
-                  newCode = originalCode ? `${counter}_${originalCode}`: `${counter}_${originalName}`; // Beri kode unik juga
+                  newCode = originalCode ? `${counter}_${originalCode}`: `${counter}_${originalName}`; 
                   counter++;
               }
 
               product.name = newName;
               product.code = newCode;
               
-              // Tambahkan produk yang sudah unik ke dalam data
+         
               if (!data[product.category]) {
                   data[product.category] = [];
               }
@@ -2275,12 +2228,12 @@ async function importData(event) {
           });
       }
       
-      // 3. Tambahkan (append) data penjualan, keranjang, dan pre-order
+
       if (importedData.sales && Array.isArray(importedData.sales)) sales.push(...importedData.sales);
       if (importedData.cart && Array.isArray(importedData.cart)) cart.push(...importedData.cart);
       if (importedData.preorders && Array.isArray(importedData.preorders)) preOrders.push(...importedData.preorders);
 
-      // 4. Gabungkan Metode Pembayaran (menggunakan Set untuk menghindari duplikasi)
+
       if (importedData.paymentMethods && Array.isArray(importedData.paymentMethods)) {
           const importedPaymentNames = importedData.paymentMethods.map(m => m.name);
           paymentMethods = Array.from(new Set([...paymentMethods, ...importedPaymentNames]));
@@ -2290,7 +2243,7 @@ async function importData(event) {
           transferMethods = Array.from(new Set([...transferMethods, ...importedTransferNames]));
       }
       
-      // 5. Simpan semua data yang telah digabungkan ke IndexedDB
+
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
         saveToIndexedDB(STORE_NAMES.CART, cart),
@@ -2301,7 +2254,7 @@ async function importData(event) {
         saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })))
       ]);
 
-      // 6. Muat ulang data dari database untuk memperbarui UI
+
       await loadFromDatabase();
 
       showNotification('Data berhasil digabungkan!');
@@ -2367,7 +2320,7 @@ function toggleBackupMenu(event) {
 }
 
     function toggleSidebar() {
-      closeAllModals(); // Tambahkan baris ini
+      closeAllModals(); 
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebarOverlay');
       sidebar.classList.toggle('open');
@@ -2400,8 +2353,13 @@ function checkWelcomeMessage() {
 }
 
 function closeEditModal() {
-  document.getElementById('editModal').style.display = 'none';
-  document.body.classList.remove('modal-open');
+    document.getElementById('editModal').style.display = 'none';
+    document.body.classList.remove('modal-open');
+
+    const fileInput = document.getElementById('editImageFile');
+    if (fileInput.pastedFile) {
+        delete fileInput.pastedFile;
+    }
 }
 
 function closeDashboard() {
@@ -3046,53 +3004,106 @@ function toggleFullscreen() {
   }
 }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      loadFromDatabase().then(() => {
-        adjustContentMargin();
 
-        document.getElementById('cartButton').addEventListener('click', toggleCartModal);
+function handlePasteOnArea(event, pasteArea) {
+  event.preventDefault();
+  const items = (event.clipboardData || window.clipboardData).items;
+  let file = null;
+  
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') !== -1) {
+      file = items[i].getAsFile();
+      break;
+    }
+  }
 
-        document.getElementById('clearSearchButton').addEventListener('click', function() {
-          document.getElementById('searchInput').value = '';
-          this.style.display = 'none';
-          filterProducts('');
-          const savedTab = localStorage.getItem('activeTab');
-          if (savedTab && document.getElementById(savedTab)) {
-            showTab(savedTab);
-          } else if (categories.length > 0) {
-            showTab(categories[0]);
-          }
-        });
+  if (file) {
+    const fileInput = pasteArea.querySelector('input[type="file"]');
+    const preview = pasteArea.querySelector('img.preview');
 
-        document.getElementById('searchInput').addEventListener('input', function() {
-          filterProducts(this.value);
-        });
+    if (!fileInput || !preview) {
+        console.error("Tidak dapat menemukan input file atau elemen preview di dalam area paste.", pasteArea);
+        showNotification("Terjadi kesalahan internal (elemen tidak ditemukan).");
+        return;
+    }
 
-        document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
 
-        document.addEventListener('fullscreenchange', () => {
-          const fullscreenButton = document.getElementById('fullscreenButton');
-          if (document.fullscreenElement) {
-            fullscreenButton.textContent = '⛶';
-            fullscreenButton.classList.add('fullscreen-active');
-          } else {
-            fullscreenButton.textContent = '⛶';
-            fullscreenButton.classList.remove('fullscreen-active');
-          }
-        });
+    fileInput.pastedFile = file;
 
-        checkWelcomeMessage();
-        setupModalCloseOnOutsideClick();
-      }).catch(error => {
-        console.error("Error dalam inisialisasi DOMContentLoaded:", error);
-      });
+   
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
 
-      document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-          closeAllModals();
+    showNotification('Gambar berhasil ditempel!');
+  } else {
+    showNotification('Tidak ada gambar yang ditemukan di clipboard.');
+  }
+}
+
+
+function initializeImagePaste() {
+    document.body.addEventListener('paste', function(event) {
+
+        const pasteArea = event.target.closest('.image-paste-area');
+        if (pasteArea) {
+
+            handlePasteOnArea(event, pasteArea);
         }
-      });
     });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadFromDatabase().then(() => {
+    adjustContentMargin();
+
+    document.getElementById('cartButton').addEventListener('click', toggleCartModal);
+
+    document.getElementById('clearSearchButton').addEventListener('click', function() {
+      document.getElementById('searchInput').value = '';
+      this.style.display = 'none';
+      filterProducts('');
+      const savedTab = localStorage.getItem('activeTab');
+      if (savedTab && document.getElementById(savedTab)) {
+        showTab(savedTab);
+      } else if (categories.length > 0) {
+        showTab(categories[0]);
+      }
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function() {
+      filterProducts(this.value);
+    });
+
+    document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
+
+    document.addEventListener('fullscreenchange', () => {
+      const fullscreenButton = document.getElementById('fullscreenButton');
+      if (document.fullscreenElement) {
+        fullscreenButton.textContent = '⛶';
+        fullscreenButton.classList.add('fullscreen-active');
+      } else {
+        fullscreenButton.textContent = '⛶';
+        fullscreenButton.classList.remove('fullscreen-active');
+      }
+    });
+
+    checkWelcomeMessage();
+    setupModalCloseOnOutsideClick();
+    initializeImagePaste(); 
+  }).catch(error => {
+    console.error("Error dalam inisialisasi DOMContentLoaded:", error);
+  });
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      closeAllModals();
+    }
+  });
+});
 
 
 
@@ -3250,4 +3261,32 @@ function renderSortedSalesTable(sortedSales = sales) {
   salesDiv.innerHTML = html;
 }
 
+function naturalCompare(a, b) {
 
+    const codeA = a.code || '';
+    const codeB = b.code || '';
+
+
+    const re = /(\D*)(\d+)/;
+    const matchA = codeA.match(re);
+    const matchB = codeB.match(re);
+
+
+    if (!matchA || !matchB) {
+        return codeA.localeCompare(codeB);
+    }
+
+    const textA = matchA[1];
+    const numA = parseInt(matchA[2], 10);
+    const textB = matchB[1];
+    const numB = parseInt(matchB[2], 10);
+
+
+    const textComparison = textA.localeCompare(textB);
+    if (textComparison !== 0) {
+        return textComparison;
+    }
+
+
+    return numA - numB;
+}
