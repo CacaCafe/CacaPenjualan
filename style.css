@@ -2015,9 +2015,9 @@ input:checked + .slider .emoji.moon {
   display: block;
 }
 .dashboard-tab-content {
-  display: none;
-  flex-grow: 1;
+  flex: 1;
   overflow-y: auto;
+  max-height: calc(85vh - 150px);
 }
 
 .top-products-list {
@@ -3014,4 +3014,566 @@ input:checked + .slider .emoji.moon {
   .date-filter-container button {
     width: 100%;
   }
+}
+
+.artist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  background-color: #f9f9f9;
+  margin-bottom: 5px;
+  border-radius: 5px;
+}
+
+.artist-item:last-child {
+  border-bottom: none;
+}
+
+.artist-item span {
+  flex-grow: 1;
+  font-size: 16px;
+  color: #333;
+  font-weight: bold;
+}
+
+.artist-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.artist-actions button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.artist-actions .btn-edit-artist {
+  background: #3498db;
+  color: white;
+}
+
+.artist-actions .btn-edit-artist:hover {
+  background: #2980b9;
+}
+
+.artist-actions .btn-delete-artist {
+  background: #e74c3c;
+  color: white;
+}
+
+.artist-actions .btn-delete-artist:hover {
+  background: #c0392b;
+}
+
+.artist-item input[type="text"] {
+  flex-grow: 1;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.artist-item .btn-save-artist {
+  background: #27ae60;
+  color: white;
+}
+
+.artist-item .btn-save-artist:hover {
+  background: #2ecc71;
+}
+
+.artist-item .btn-cancel-edit {
+  background: #95a5a6;
+  color: white;
+}
+
+.artist-item .btn-cancel-edit:hover {
+  background: #7f8c8d;
+}
+.artist-filter-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  flex-wrap: wrap;
+}
+
+.artist-filter-container label {
+  font-weight: bold;
+  color: var(--professional-dark);
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+
+.artist-filter-container select,
+.artist-filter-container input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid var(--professional-border);
+  border-radius: 5px;
+  font-size: 14px;
+  background-color: white;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.artist-ranking-list {
+  margin-bottom: 30px;
+}
+
+.artist-rank-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.artist-rank-info {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.artist-rank-number {
+  font-size: 24px;
+  font-weight: bold;
+  margin-right: 15px;
+  min-width: 40px;
+}
+
+.artist-rank-details {
+  flex-grow: 1;
+}
+
+.artist-rank-name {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.artist-rank-stats {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  font-size: 14px;
+  color: #666;
+}
+
+.artist-rank-badge {
+  font-size: 24px;
+  margin-left: 15px;
+}
+
+.rank-first {
+  background: linear-gradient(135deg, #FFD700, #FFEC8B);
+  border: 2px solid #FFD700;
+}
+
+.rank-second {
+  background: linear-gradient(135deg, #C0C0C0, #E8E8E8);
+  border: 2px solid #C0C0C0;
+}
+
+.rank-third {
+  background: linear-gradient(135deg, #CD7F32, #E8B886);
+  border: 2px solid #CD7F32;
+}
+
+.rank-other {
+  background: white;
+  border: 1px solid #ddd;
+}
+
+.artist-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.artist-sales-table-container {
+  overflow-x: auto;
+  margin-top: 15px;
+}
+
+.artist-sales-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.artist-sales-table th,
+.artist-sales-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.artist-sales-table th {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+.artist-sales-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.artist-sales-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+@media (max-width: 768px) {
+    #dashboardModal .modal-content {
+    width: 95%;
+    max-height: 90vh;
+    margin: 10px;
+  }
+  
+  .artist-filter-container {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .artist-filter-container select,
+  .artist-filter-container input,
+  .artist-filter-container button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  .artist-rank-stats {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .artist-rank-info {
+    gap: 10px;
+  }
+  
+  .artist-rank-number {
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
+  }
+  
+  .artist-rank-name {
+    font-size: 16px;
+  }
+  
+  .stat-item {
+    font-size: 12px;
+  }
+}
+#dashboardModal .modal-content {
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#artistSalesTab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+#artistSalesData {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 5px;
+}
+.artist-ranking-list,
+.artist-sales-details {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.btn-add-artist {
+  background-color: var(--professional-accent);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 15px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-add-artist:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-add-artist:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+}
+
+.btn-add-artist .icon {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#newArtistName {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-bottom: 10px;
+  transition: all 0.3s;
+}
+
+#newArtistName:focus {
+  border-color: #f25ef3;
+  box-shadow: 0 0 0 3px rgba(242, 94, 243, 0.2);
+  outline: none;
+}
+
+#downloadArtistExcelBtn {
+  background-color: var(--professional-info);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+#downloadArtistExcelBtn:hover {
+  background-color: #138496;
+}
+
+#downloadArtistExcelBtn:active {
+  background-color: #117a8b;
+}
+
+
+select[name="artist"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--professional-border);
+  border-radius: 5px;
+  font-size: 15px;
+  background-color: white;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'><path fill='%23333' d='M2 0L0 2h4zm0 5L0 3h4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+
+select[name="artist"]:focus {
+  border-color: var(--professional-primary);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  outline: none;
+}
+
+select[name="artist"] option {
+  padding: 8px;
+  font-size: 14px;
+}
+
+
+#editModal select[name="artist"] {
+  margin-bottom: 15px;
+}
+
+
+label[for="artistSelect-edit"],
+form.add-form label:has(+ select[name="artist"]) {
+  font-weight: bold;
+  color: var(--professional-dark);
+  margin-top: 15px;
+  margin-bottom: 5px;
+  display: block;
+}
+
+
+.image-input-container + label + select[name="artist"] {
+  margin-top: 15px;
+}
+
+
+@media (max-width: 480px) {
+  select[name="artist"] {
+    padding: 8px;
+    font-size: 14px;
+  }
+  
+  #downloadArtistExcelBtn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+
+.product-artist {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+  margin-bottom: 5px;
+  font-style: italic;
+}
+
+
+.sales-item-artist {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+
+#artistSalesFilter {
+  padding: 8px 12px;
+  border: 1px solid var(--professional-border);
+  border-radius: 5px;
+  font-size: 14px;
+  background-color: white;
+  min-width: 150px;
+}
+
+#artistSalesFilter:focus {
+  border-color: var(--professional-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+
+@media (max-width: 768px) {
+  .artist-filter-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .artist-filter-container label {
+    margin-bottom: 5px;
+  }
+  
+  .artist-filter-container select,
+  .artist-filter-container input[type="date"],
+  .artist-filter-container button {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .artist-filter-container {
+    padding: 10px;
+  }
+  
+  .artist-filter-container select,
+  .artist-filter-container input[type="date"] {
+    padding: 10px;
+    font-size: 16px; 
+  }
+  
+  .artist-filter-container button {
+    padding: 10px 15px;
+    font-size: 16px;
+  }
+}
+
+
+#artistModal .modal-content {
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.artist-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.artist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: white;
+}
+
+.artist-item:last-child {
+  border-bottom: none;
+}
+
+.artist-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit-artist, .btn-delete-artist, .btn-save-artist, .btn-cancel-edit {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-edit-artist {
+  background: #3498db;
+  color: white;
+}
+
+.btn-delete-artist {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-save-artist {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-cancel-edit {
+  background: #95a5a6;
+  color: white;
+}
+
+#editArtistInput {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 200px;
 }
