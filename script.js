@@ -9,16 +9,18 @@ function adjustContentMargin() {
 
 window.addEventListener('load', () => {
   adjustContentMargin(); 
-  loadFromDatabase();   
+  loadFromDatabase();  
+   
 });
 
 window.addEventListener('resize', adjustContentMargin); 
 
 const DB_NAME = 'penjualan_barang_db';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const STORE_NAMES = {
   PRODUCTS: 'products',
   CART: 'cart',
+  ARTISTS: 'artists',
   SALES: 'sales',
   CATEGORIES: 'categories',
   PREORDERS: 'preorders',
@@ -29,6 +31,7 @@ let db;
 let data = {};
 let categories = [];
 let cart = [];
+let artists = [];
 let sales = [];
 let preOrders = [];
 let currentAmountInput = '';
@@ -58,38 +61,47 @@ function openDatabase() {
       resolve(db);
     };
 
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
+request.onupgradeneeded = (event) => {
+  const db = event.target.result;
 
-      if (!db.objectStoreNames.contains(STORE_NAMES.PRODUCTS)) {
-        db.createObjectStore(STORE_NAMES.PRODUCTS, { keyPath: ['category', 'name'] });
-      }
 
-      if (!db.objectStoreNames.contains(STORE_NAMES.CART)) {
-        db.createObjectStore(STORE_NAMES.CART, { keyPath: 'name' });
-      }
+  if (!db.objectStoreNames.contains(STORE_NAMES.PRODUCTS)) {
+    db.createObjectStore(STORE_NAMES.PRODUCTS, { keyPath: ['category', 'name'] });
+  }
 
-      if (!db.objectStoreNames.contains(STORE_NAMES.SALES)) {
-        db.createObjectStore(STORE_NAMES.SALES, { keyPath: 'time' });
-      }
+  if (!db.objectStoreNames.contains(STORE_NAMES.CART)) {
+    db.createObjectStore(STORE_NAMES.CART, { keyPath: 'name' });
+  }
 
-      if (!db.objectStoreNames.contains(STORE_NAMES.CATEGORIES)) {
-        db.createObjectStore(STORE_NAMES.CATEGORIES, { keyPath: 'name' });
-      }
+  if (!db.objectStoreNames.contains(STORE_NAMES.SALES)) {
+    db.createObjectStore(STORE_NAMES.SALES, { keyPath: 'time' });
+  }
 
-      if (!db.objectStoreNames.contains(STORE_NAMES.PREORDERS)) {
-        db.createObjectStore(STORE_NAMES.PREORDERS, { keyPath: 'id', autoIncrement: true });
-        console.log(`Object store '${STORE_NAMES.PREORDERS}' dibuat.`);
-      }
-      if (!db.objectStoreNames.contains(STORE_NAMES.PAYMENT_METHODS)) {
-        db.createObjectStore(STORE_NAMES.PAYMENT_METHODS, { keyPath: 'name' });
-        console.log(`Object store '${STORE_NAMES.PAYMENT_METHODS}' dibuat.`);
-      }
-      if (!db.objectStoreNames.contains(STORE_NAMES.TRANSFER_METHODS)) {
-        db.createObjectStore(STORE_NAMES.TRANSFER_METHODS, { keyPath: 'name' });
-        console.log(`Object store '${STORE_NAMES.TRANSFER_METHODS}' dibuat.`);
-      }
-    };
+  if (!db.objectStoreNames.contains(STORE_NAMES.CATEGORIES)) {
+    db.createObjectStore(STORE_NAMES.CATEGORIES, { keyPath: 'name' });
+  }
+
+  if (!db.objectStoreNames.contains(STORE_NAMES.PREORDERS)) {
+    db.createObjectStore(STORE_NAMES.PREORDERS, { keyPath: 'id', autoIncrement: true });
+    console.log(`Object store '${STORE_NAMES.PREORDERS}' dibuat.`);
+  }
+  
+  if (!db.objectStoreNames.contains(STORE_NAMES.PAYMENT_METHODS)) {
+    db.createObjectStore(STORE_NAMES.PAYMENT_METHODS, { keyPath: 'name' });
+    console.log(`Object store '${STORE_NAMES.PAYMENT_METHODS}' dibuat.`);
+  }
+  
+  if (!db.objectStoreNames.contains(STORE_NAMES.TRANSFER_METHODS)) {
+    db.createObjectStore(STORE_NAMES.TRANSFER_METHODS, { keyPath: 'name' });
+    console.log(`Object store '${STORE_NAMES.TRANSFER_METHODS}' dibuat.`);
+  }
+
+
+  if (!db.objectStoreNames.contains(STORE_NAMES.ARTISTS)) {
+    db.createObjectStore(STORE_NAMES.ARTISTS, { keyPath: 'name' });
+    console.log(`Object store '${STORE_NAMES.ARTISTS}' dibuat.`);
+  }
+};
   });
 }
 
@@ -207,12 +219,30 @@ async function loadFromDatabase() {
       loadedTransferMethods.map(m => m.name) :
       ['Bank BCA', 'Bank Mandiri', 'OVO', 'GoPay'];
 
-    console.log("Keranjang, penjualan, pre-order, dan metode pembayaran dimuat.");
+
+try {
+  const loadedArtists = await loadFromIndexedDB(STORE_NAMES.ARTISTS);
+  artists = Array.isArray(loadedArtists) && loadedArtists.length > 0 ?
+    loadedArtists.map(a => a.name) :
+    [];
+  console.log("Artists dimuat:", artists);
+} catch (error) {
+  console.warn("Gagal memuat artists, menggunakan array kosong:", error);
+  artists = [];
+}
+
+    console.log("Keranjang, penjualan, pre-order, metode pembayaran, dan artists dimuat.");
 
     console.log("Data berhasil dimuat. Memperbarui UI...");
     updateNavbarCategories();
     renderProducts();
     updateCartBadge();
+    
+
+    setTimeout(() => {
+      populateArtistSelects();
+    }, 100);
+    
     if (categories.length > 0) {
       const savedTab = localStorage.getItem('activeTab');
       if (savedTab && document.getElementById(savedTab)) {
@@ -237,7 +267,6 @@ async function loadFromDatabase() {
     document.getElementById('dynamic-tabs').innerHTML = '<div class="empty-state" style="color: red;">Gagal memuat data. Mohon periksa konsol browser untuk detail kesalahan.</div>';
   }
 }
-
 async function saveAllData() {
   try {
     await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
@@ -246,6 +275,11 @@ async function saveAllData() {
     const categoriesToSave = categories.map(name => ({ name }));
     await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
     await saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders);
+    
+
+    const artistsToSave = artists.map(name => ({ name }));
+    await saveToIndexedDB(STORE_NAMES.ARTISTS, artistsToSave);
+    
     const paymentMethodsToSave = paymentMethods.map(name => ({ name }));
     await saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, paymentMethodsToSave);
     const transferMethodsToSave = transferMethods.map(name => ({ name }));
@@ -413,6 +447,8 @@ function renderProducts() {
           <div class="product-info">
             <div>
               <h3 class="product-name">${item.name}</h3>
+              <!-- EDIT - TAMBAH: Tampilkan info artist jika ada -->
+              ${item.artist ? `<div class="product-artist">Artist: ${item.artist}</div>` : ''}
               <div class="product-price">Rp${formatRupiah(item.price)}</div>
               <div class="stock-info-container">
                 <div class="stock-info">
@@ -517,6 +553,11 @@ function updateNavbarCategories() {
           <input type="text" name="name" placeholder="Nama Barang" required />
           <p>Kode Barang</p>
           <input type="text" name="code" placeholder="Kode Barang" required />
+          <label>Artist</label>
+          <label>Artist</label>
+          <select name="artist" id="artistSelect-edit">
+            <option value="">Tanpa Artist</option>
+          </select>
           <div class="image-input-container image-paste-area">
             <div class="image-source-buttons">
               <button type="button" class="image-source-btn" onclick="openCamera('${category}')">📷 Kamera</button>
@@ -1131,12 +1172,14 @@ async function processCheckout(paymentType, paymentDetails = '') {
 
   const now = new Date().toLocaleString('id-ID');
 
-  cart.forEach(item => {
-    const product = data[item.category].find(p => p.name === item.name);
-    if (product) {
-      product.stock -= item.qty;
-    }
-  });
+cart.forEach(item => {
+  const product = data[item.category].find(p => p.name === item.name);
+  if (product) {
+    product.stock -= item.qty;
+
+    item.artist = product.artist || '';
+  }
+});
 
   sales.push({
     time: now,
@@ -1238,9 +1281,13 @@ function editProduct(category, index) {
   document.getElementById('editIndex').value = index;
   document.getElementById('editName').value = product.name;
   document.getElementById('editCode').value = product.code || '';
+
+  const artistSelect = document.getElementById('artistSelect-edit');
+  if (artistSelect) {
+    artistSelect.value = product.artist || '';
+  }
   
   document.getElementById('editPrice').value = formatRupiah(product.price);
-  
   document.getElementById('editStock').value = product.stock;
   document.getElementById('editMinStock').value = product.minStock;
   document.getElementById('editPreview').src = product.image;
@@ -1254,6 +1301,10 @@ async function saveEditedProduct(event) {
     const form = event.target;
     const name = form.name.value.trim();
     const code = form.code.value.trim();
+    
+   
+    const artist = form.artist ? form.artist.value : '';
+    
     const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
     const stock = parseInt(form.stock.value);
     const minStock = parseInt(form.minStock.value);
@@ -1282,6 +1333,10 @@ async function saveEditedProduct(event) {
 
     data[category][index].name = name;
     data[category][index].code = code;
+    
+
+    data[category][index].artist = artist;
+    
     data[category][index].price = price;
     data[category][index].stock = stock;
     data[category][index].minStock = minStock;
@@ -1304,9 +1359,12 @@ async function addProduct(event, category) {
 
   const stock = parseInt(form.stock.value);
   const minStock = parseInt(form.minStock.value);
+  
+
+  const artist = form.artist ? form.artist.value : '';
+  
   const fileInput = form.imageFile;
   const file = fileInput.pastedFile || (fileInput.files.length > 0 ? fileInput.files[0] : null);
-
 
   if (!name || name.length < 2) {
     showNotification("Nama barang harus diisi (minimal 2 karakter)!");
@@ -1343,6 +1401,7 @@ async function addProduct(event, category) {
     const newProduct = {
       name,
       code,
+      artist,
       image: compressedImage,
       price,
       stock,
@@ -1364,6 +1423,12 @@ async function addProduct(event, category) {
       preview.style.display = 'none';
       preview.src = '';
     }
+    
+    const artistSelect = form.querySelector('select[name="artist"]');
+    if (artistSelect) {
+      artistSelect.value = '';
+    }
+    
     renderProducts();
     showNotification(`Produk "${name}" ditambahkan!`);
   } catch (error) {
@@ -1722,6 +1787,7 @@ function toggleSales() {
   }
 }
 
+
 function renderSalesTable() {
   const salesDiv = document.getElementById('salesData');
 
@@ -1734,9 +1800,9 @@ function renderSalesTable() {
     <table>
       <thead>
         <tr>
-          <th id="sortSalesTable('time')">Waktu</th>
-          <th id="sortSalesTable('name')">Barang</th>
-          <th id="sortSalesTable('total')">Total Item</th>
+          <th>Waktu</th>
+          <th>Barang</th>
+          <th>Total Item</th>
           <th>Aksi</th>
         </tr>
       </thead>
@@ -1811,16 +1877,6 @@ function renderSalesTable() {
     </div>
   `;
   salesDiv.innerHTML = html;
-
-  const headers = salesDiv.querySelectorAll('th[onclick]');
-  headers.forEach(header => {
-    header.innerHTML = header.innerHTML.replace('▲▼', '').replace('▲', '').replace('▼', '');
-    if (header.textContent.includes(currentSortColumn)) {
-      header.innerHTML += sortDirection === 1 ? ' ▲' : ' ▼';
-    } else {
-      header.innerHTML += ' ▲▼';
-    }
-  });
 }
 
 
@@ -2027,15 +2083,15 @@ function downloadExcel() {
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
     const wscols = [
-      {wch: 20}, // Waktu
-      {wch: 30}, // Nama Barang
-      {wch: 15}, // Kategori
-      {wch: 15}, // Kode Barang
-      {wch: 10}, // Jumlah
-      {wch: 15}, // Harga Satuan
-      {wch: 15}, // Total Item
-      {wch: 20}, // Total Pembayaran
-      {wch: 20}  // Jenis Pembayaran
+      {wch: 20}, 
+      {wch: 30}, 
+      {wch: 15}, 
+      {wch: 15}, 
+      {wch: 10}, 
+      {wch: 15}, 
+      {wch: 15}, 
+      {wch: 20}, 
+      {wch: 20}  
     ];
     ws['!cols'] = wscols;
 
@@ -2065,6 +2121,7 @@ function showDashboard() {
 function showDashboardTab(tabId) {
   document.querySelectorAll('.dashboard-tab-content').forEach(tab => {
     tab.classList.remove('active');
+    tab.style.display = 'none';
   });
 
   document.querySelectorAll('.dashboard-tab').forEach(tab => {
@@ -2072,8 +2129,17 @@ function showDashboardTab(tabId) {
   });
 
   document.getElementById(tabId + 'Tab').classList.add('active');
-
+  document.getElementById(tabId + 'Tab').style.display = 'block';
   document.querySelector(`.dashboard-tab[onclick*="showDashboardTab('${tabId}')"]`).classList.add('active');
+
+  if (tabId === 'salesReport') {
+    renderSalesTable();
+  } else if (tabId === 'topProducts') {
+    renderTopProducts();
+  } else if (tabId === 'artistSales') {
+    populateArtistSalesFilter(); 
+    renderArtistSalesTable();    
+  }
 }
 
 function renderTopProducts() {
@@ -2282,6 +2348,10 @@ async function resetAllData() {
       sales = [];
       categories = [];
       preOrders = [];
+      
+
+      artists = [];
+      
       paymentMethods = ['Cash', 'Transfer'];
       transferMethods = ['Bank BCA', 'Bank Mandiri', 'OVO', 'GoPay'];
 
@@ -2291,6 +2361,10 @@ async function resetAllData() {
         saveToIndexedDB(STORE_NAMES.SALES, sales),
         saveToIndexedDB(STORE_NAMES.CATEGORIES, []),
         saveToIndexedDB(STORE_NAMES.PREORDERS, []),
+        
+
+        saveToIndexedDB(STORE_NAMES.ARTISTS, []),
+        
         saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, paymentMethods.map(name => ({ name }))),
         saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })))
       ]);
@@ -2302,6 +2376,9 @@ async function resetAllData() {
       renderPreOrderList();
       renderDynamicTransferMethods();
       populateProductSelect();
+      
+
+      populateArtistSelects();
 
       showNotification('Semua data telah direset!');
     } catch (error) {
@@ -2901,7 +2978,8 @@ async function deletePaymentMethod(methodName, index) {
         document.getElementById('checkoutModal'),
         document.getElementById('preOrderModal'),
         document.getElementById('checkoutConfirmationModal'),
-        document.getElementById('paymentMethodModal')
+        document.getElementById('paymentMethodModal'),
+        document.getElementById('artistModal')
       ];
 
       modalsToClose.forEach(modal => {
@@ -2918,6 +2996,7 @@ async function deletePaymentMethod(methodName, index) {
             else if (modal.id === 'preOrderModal') closePreOrderModal();
             else if (modal.id === 'checkoutConfirmationModal') closeCheckoutConfirmationModal();
             else if (modal.id === 'paymentMethodModal') closePaymentMethodModal();
+            else if (modal.id === 'artistModal') closeArtistModal();
           }
         }
       });
@@ -2935,7 +3014,8 @@ function setupModalCloseOnOutsideClick() {
     document.getElementById('checkoutModal'),
     document.getElementById('preOrderModal'),
     document.getElementById('checkoutConfirmationModal'),
-    document.getElementById('paymentMethodModal')
+    document.getElementById('paymentMethodModal'),
+    document.getElementById('artistModal')
   ].filter(Boolean);
 
   document.addEventListener('click', function(event) {
@@ -2956,7 +3036,8 @@ function setupModalCloseOnOutsideClick() {
         event.target.closest('[onclick*="showHelp"]') ||
         event.target.closest('[onclick*="showPreOrder"]') ||
         event.target.closest('.btn-checkout-cart') ||
-        event.target.closest('.btn-manage-payment');
+        event.target.closest('.btn-manage-payment') ||
+        event.target.closest('[onclick*="openArtistModal"]');
 
       if (isOpen && !isClickInsideModal && !isClickOnOpenerButton) {
         if (element.id === 'sidebar') {
@@ -2979,6 +3060,8 @@ function setupModalCloseOnOutsideClick() {
           closeCheckoutConfirmationModal();
         } else if (element.id === 'paymentMethodModal') {
           closePaymentMethodModal();
+        } else if (element.id === 'artistModal') { 
+          closeArtistModal();
         }
       }
     });
@@ -3289,4 +3372,713 @@ function naturalCompare(a, b) {
 
 
     return numA - numB;
+}
+
+
+
+function openArtistModal() {
+  document.getElementById('artistModal').style.display = 'flex';
+  document.body.classList.add('modal-open');
+  renderArtistList();
+}
+
+function closeArtistModal() {
+  document.getElementById('artistModal').style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
+function renderArtistList() {
+  const artistList = document.getElementById('artistList');
+  artistList.innerHTML = '';
+
+  if (artists.length === 0) {
+    artistList.innerHTML = '<div class="empty-state">Belum ada artist.</div>';
+    return;
+  }
+
+  artists.forEach((artist, index) => {
+    const item = document.createElement('div');
+    item.className = 'artist-item';
+    item.setAttribute('data-artist-name', artist);
+
+    item.innerHTML = `
+      <span id="artistName-${index}">${artist}</span>
+      <div class="artist-actions">
+        <button class="btn-edit-artist" onclick="editArtistName('${artist}', ${index})">✏️ Edit</button>
+        <button class="btn-delete-artist" onclick="deleteArtist('${artist}', ${index})">🗑️ Hapus</button>
+      </div>
+    `;
+    artistList.appendChild(item);
+  });
+}
+
+async function addNewArtist(event) {
+  event.preventDefault();
+  const input = document.getElementById('newArtistName');
+  const artistName = input.value.trim();
+
+  if (!artistName) {
+    showNotification('Nama artist tidak boleh kosong!');
+    return;
+  }
+  if (artists.includes(artistName)) {
+    showNotification('Artist dengan nama tersebut sudah ada!');
+    return;
+  }
+
+  artists.push(artistName);
+  artists.sort((a, b) => a.localeCompare(b));
+
+  try {
+    await saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name })));
+    renderArtistList();
+    populateArtistSelects();
+    showNotification('Artist berhasil ditambahkan!');
+    input.value = '';
+  } catch (error) {
+    console.error('Gagal menambahkan artist:', error);
+    showNotification('Gagal menambahkan artist!');
+  }
+}
+
+function editArtistName(oldArtistName, index) {
+  const artistItem = document.querySelector(`.artist-item[data-artist-name="${oldArtistName}"]`);
+  if (!artistItem) return;
+
+  const artistNameSpan = artistItem.querySelector(`#artistName-${index}`);
+  const artistActionsDiv = artistItem.querySelector('.artist-actions');
+
+  const originalName = artistNameSpan.textContent;
+
+  artistNameSpan.innerHTML = `
+    <input type="text" id="editArtistInput-${index}" value="${originalName}" />
+  `;
+
+  artistActionsDiv.innerHTML = `
+    <button class="btn-save-artist" onclick="saveArtistName('${oldArtistName}', ${index})">💾 Simpan</button>
+    <button class="btn-cancel-edit" onclick="cancelEditArtistName('${oldArtistName}', ${index}, '${originalName}')">✖️ Batal</button>
+  `;
+
+  document.getElementById(`editArtistInput-${index}`).focus();
+}
+
+async function saveArtistName(oldArtistName, index) {
+  const newArtistInput = document.getElementById(`editArtistInput-${index}`);
+  const newArtistName = newArtistInput.value.trim();
+
+  if (!newArtistName) {
+    showNotification('Nama artist tidak boleh kosong!');
+    return;
+  }
+  if (newArtistName === oldArtistName) {
+    cancelEditArtistName(oldArtistName, index, oldArtistName);
+    return;
+  }
+  if (artists.includes(newArtistName)) {
+    showNotification('Artist dengan nama tersebut sudah ada!');
+    return;
+  }
+
+  if (!confirm(`Ubah nama artist dari "${oldArtistName}" menjadi "${newArtistName}"?`)) {
+    cancelEditArtistName(oldArtistName, index, oldArtistName);
+    return;
+  }
+
+  try {
+    artists[index] = newArtistName;
+    artists.sort((a, b) => a.localeCompare(b));
+
+
+    for (const category in data) {
+      data[category].forEach(product => {
+        if (product.artist === oldArtistName) {
+          product.artist = newArtistName;
+        }
+      });
+    }
+
+    await Promise.all([
+      saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name }))),
+      saveToIndexedDB(STORE_NAMES.PRODUCTS, data)
+    ]);
+
+    renderArtistList();
+    populateArtistSelects();
+    renderProducts();
+    showNotification('Artist berhasil diubah!');
+  } catch (error) {
+    console.error('Gagal menyimpan perubahan artist:', error);
+    showNotification('Gagal menyimpan perubahan artist!');
+  }
+}
+
+function cancelEditArtistName(oldArtistName, index, originalDisplayName) {
+  const artistItem = document.querySelector(`.artist-item[data-artist-name="${oldArtistName}"]`);
+  if (!artistItem) return;
+
+  const artistNameSpan = artistItem.querySelector(`#artistName-${index}`);
+  const artistActionsDiv = artistItem.querySelector('.artist-actions');
+
+  artistNameSpan.textContent = originalDisplayName;
+
+  artistActionsDiv.innerHTML = `
+    <button class="btn-edit-artist" onclick="editArtistName('${oldArtistName}', ${index})">✏️ Edit</button>
+    <button class="btn-delete-artist" onclick="deleteArtist('${oldArtistName}', ${index})">🗑️ Hapus</button>
+  `;
+}
+
+async function deleteArtist(artistName, index) {
+  if (!confirm(`Hapus artist "${artistName}"?`)) {
+    return;
+  }
+
+  try {
+    artists.splice(index, 1);
+
+
+    for (const category in data) {
+      data[category].forEach(product => {
+        if (product.artist === artistName) {
+          product.artist = '';
+        }
+      });
+    }
+
+    await Promise.all([
+      saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name }))),
+      saveToIndexedDB(STORE_NAMES.PRODUCTS, data)
+    ]);
+
+    renderArtistList();
+    populateArtistSelects();
+    renderProducts();
+    showNotification('Artist berhasil dihapus!');
+  } catch (error) {
+    console.error('Gagal menghapus artist:', error);
+    showNotification('Gagal menghapus artist!');
+  }
+}
+
+
+function populateArtistSelects() {
+  document.querySelectorAll('select[name="artist"]').forEach(select => {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Tanpa Artist</option>';
+    
+    artists.forEach(artist => {
+      const option = document.createElement('option');
+      option.value = artist;
+      option.textContent = artist;
+      select.appendChild(option);
+    });
+    
+
+    select.value = currentValue;
+  });
+
+
+  const artistFilter = document.getElementById('artistFilter');
+  if (artistFilter) {
+    const currentValue = artistFilter.value;
+    artistFilter.innerHTML = '<option value="">Semua Artist</option>';
+    
+    artists.forEach(artist => {
+      const option = document.createElement('option');
+      option.value = artist;
+      option.textContent = artist;
+      artistFilter.appendChild(option);
+    });
+    
+    artistFilter.value = currentValue;
+  }
+}
+
+
+function filterSalesByArtist() {
+  const selectedArtist = document.getElementById('artistFilter').value;
+  
+  if (!selectedArtist) {
+    renderSalesTable();
+    return;
+  }
+
+  const filteredSales = sales.filter(sale => {
+    return sale.items.some(item => item.artist === selectedArtist);
+  });
+
+  renderSortedSalesTable(filteredSales);
+}
+
+function renderArtistSalesTable(selectedArtist = '') {
+  const artistSalesData = document.getElementById('artistSalesData');
+  
+  if (!artistSalesData) {
+    console.error('Element artistSalesData tidak ditemukan');
+    return;
+  }
+  
+
+  const artistStats = {};
+  
+  sales.forEach(sale => {
+    sale.items.forEach(item => {
+      const artistName = item.artist || 'Tanpa Artist';
+      const itemTotal = item.price * item.qty;
+      
+      if (!artistStats[artistName]) {
+        artistStats[artistName] = {
+          totalSales: 0,
+          totalItems: 0,
+          transactionCount: new Set() 
+        };
+      }
+      
+      artistStats[artistName].totalSales += itemTotal;
+      artistStats[artistName].totalItems += item.qty;
+      artistStats[artistName].transactionCount.add(sale.time); 
+    });
+  });
+  
+
+  Object.keys(artistStats).forEach(artistName => {
+    artistStats[artistName].transactionCount = artistStats[artistName].transactionCount.size;
+  });
+  
+
+  let displayStats = artistStats;
+  if (selectedArtist && selectedArtist !== '') {
+    displayStats = {};
+    if (artistStats[selectedArtist]) {
+      displayStats[selectedArtist] = artistStats[selectedArtist];
+    }
+  }
+  artistSalesData.scrollTop = 0;
+
+  const sortedArtists = Object.entries(displayStats)
+    .map(([artistName, stats]) => ({
+      artistName,
+      ...stats
+    }))
+    .sort((a, b) => b.totalSales - a.totalSales);
+  
+  if (sortedArtists.length === 0) {
+    artistSalesData.innerHTML = '<div class="empty-state">Belum ada data penjualan untuk artist' + 
+      (selectedArtist ? ` "${selectedArtist}"` : '') + '</div>';
+    return;
+  }
+  
+  let html = `
+    <div class="artist-ranking-header">
+      <h4>Peringkat Artist Berdasarkan Pendapatan</h4>
+    </div>
+    <div class="artist-ranking-list">
+  `;
+  
+ 
+  sortedArtists.forEach((artist, index) => {
+    const rankClass = index === 0 ? 'rank-first' : 
+                     index === 1 ? 'rank-second' : 
+                     index === 2 ? 'rank-third' : 'rank-other';
+    
+    html += `
+      <div class="artist-rank-item ${rankClass}">
+        <div class="artist-rank-info">
+          <div class="artist-rank-number">${index + 1}</div>
+          <div class="artist-rank-details">
+            <div class="artist-rank-name">${artist.artistName}</div>
+            <div class="artist-rank-stats">
+              <span class="stat-item">💰 Rp${formatRupiah(artist.totalSales)}</span>
+              <span class="stat-item">📦 ${artist.totalItems} item</span>
+              <span class="stat-item">🛒 ${artist.transactionCount} transaksi</span>
+            </div>
+          </div>
+        </div>
+        <div class="artist-rank-badge ${rankClass}">
+          ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎯'}
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `</div>`;
+  
+
+  html += `
+    <div class="artist-sales-details">
+      <h4>Detail Penjualan per Artist</h4>
+      <div class="artist-sales-table-container">
+        <table class="artist-sales-table">
+          <thead>
+            <tr>
+              <th>Artist</th>
+              <th>Total Pendapatan</th>
+              <th>Barang Terjual</th>
+              <th>Jumlah Transaksi</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+  
+  sortedArtists.forEach(artist => {
+    html += `
+      <tr>
+        <td>
+          <span class="artist-badge">${artist.artistName}</span>
+        </td>
+        <td>Rp${formatRupiah(artist.totalSales)}</td>
+        <td>${artist.totalItems} item</td>
+        <td>${artist.transactionCount}</td>
+      </tr>
+    `;
+  });
+  
+  html += `
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="sales-actions-bottom">
+      <button id="downloadArtistExcelBtn" onclick="downloadArtistExcel()">⬇️ Download Data Artist</button>
+    </div>
+  `;
+  
+  artistSalesData.innerHTML = html;
+}
+
+
+function calculateArtistStats(artistName, salesData) {
+  let totalSales = 0;
+  let totalItems = 0;
+  let transactionCount = 0;
+
+  salesData.forEach(sale => {
+    const artistItems = sale.items.filter(item => {
+      if (artistName === 'Tanpa Artist') {
+        return !item.artist || item.artist.trim() === '';
+      } else {
+        return item.artist === artistName;
+      }
+    });
+    
+    if (artistItems.length > 0) {
+      transactionCount++;
+      artistItems.forEach(item => {
+        totalSales += item.price * item.qty;
+        totalItems += item.qty;
+      });
+    }
+  });
+
+  return {
+    totalSales,
+    totalItems,
+    transactionCount
+  };
+}
+
+
+
+function filterArtistSalesByDate() {
+  const startDateInput = document.getElementById('artistStartDate');
+  const endDateInput = document.getElementById('artistEndDate');
+  const selectedArtist = document.getElementById('artistSalesFilter').value;
+  
+  if (!startDateInput.value && !endDateInput.value) {
+    renderArtistSalesTable(selectedArtist);
+    return;
+  }
+
+  const startDate = startDateInput.value ? new Date(startDateInput.value) : null;
+  const endDate = endDateInput.value ? new Date(endDateInput.value) : null;
+
+  if (startDate && endDate && startDate > endDate) {
+    showNotification('Tanggal mulai tidak boleh lebih besar dari tanggal akhir!');
+    return;
+  }
+
+  const filteredSales = sales.filter(sale => {
+    const saleDate = new Date(sale.time.split(',')[0].split('/').reverse().join('-'));
+    
+    if (startDate && endDate) {
+      return saleDate >= startDate && saleDate <= endDate;
+    } else if (startDate) {
+      return saleDate >= startDate;
+    } else if (endDate) {
+      return saleDate <= endDate;
+    }
+    return true;
+  });
+
+  renderArtistSalesTableWithData(selectedArtist, filteredSales);
+}
+
+
+function resetArtistSalesDateFilter() {
+  document.getElementById('artistStartDate').value = '';
+  document.getElementById('artistEndDate').value = '';
+  const selectedArtist = document.getElementById('artistSalesFilter').value;
+  renderArtistSalesTable(selectedArtist);
+}
+
+
+function renderArtistSalesTableWithData(selectedArtist, filteredSales) {
+  const artistSalesData = document.getElementById('artistSalesData');
+  
+  let displaySales = filteredSales;
+  if (selectedArtist) {
+    displaySales = filteredSales.filter(sale => {
+      return sale.items.some(item => item.artist === selectedArtist);
+    });
+  }
+
+  if (displaySales.length === 0) {
+    artistSalesData.innerHTML = '<div class="empty-state">Belum ada data penjualan' + 
+      (selectedArtist ? ` untuk artist "${selectedArtist}"` : '') + ' pada periode tanggal yang dipilih</div>';
+    return;
+  }
+
+  let html = `
+    <div class="date-filter-container">
+      <label for="artistStartDate">Dari Tanggal:</label>
+      <input type="date" id="artistStartDate" value="${document.getElementById('artistStartDate').value}">
+      <label for="artistEndDate">Sampai Tanggal:</label>
+      <input type="date" id="artistEndDate" value="${document.getElementById('artistEndDate').value}">
+      <button onclick="filterArtistSalesByDate()">Filter</button>
+      <button onclick="resetArtistSalesDateFilter()">Reset</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Barang</th>
+          <th>Artist</th>
+          <th>Total Item</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  let grandTotal = 0;
+  let totalCash = 0;
+  let totalTransfer = 0;
+
+  displaySales.forEach((sale, saleIndex) => {
+    grandTotal += sale.total;
+    if (sale.paymentType && sale.paymentType.toLowerCase() === 'cash') {
+      totalCash += sale.total;
+    } else if (sale.paymentType && sale.paymentType.toLowerCase() !== 'cash') {
+      totalTransfer += sale.total;
+    }
+
+    const itemsByProduct = {};
+    sale.items.forEach(item => {
+      const key = `${item.name}-${item.category}-${item.artist || 'No Artist'}`;
+      if (!itemsByProduct[key]) {
+        itemsByProduct[key] = {
+          name: item.name,
+          category: item.category,
+          artist: item.artist || 'Tanpa Artist',
+          image: item.image,
+          qty: 0,
+          price: item.price,
+          code: item.code
+        };
+      }
+      itemsByProduct[key].qty += item.qty;
+    });
+
+    Object.values(itemsByProduct).forEach(item => {
+      html += `
+        <tr class="sales-item-row">
+          <td>${sale.time}</td>
+          <td>
+            <div class="sales-item">
+              <img src="${item.image}" class="sales-item-img" alt="${item.name}">
+              <div class="sales-item-info">
+                <div class="sales-item-name">${item.name}</div>
+                <div class="sales-item-category">${item.category}</div>
+                <div class="sales-item-code">Kode: <strong>${item.code || '-'}</strong></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="artist-badge">${item.artist}</span>
+          </td>
+          <td style="font-weight: bold; text-align: right;">
+            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
+            <small>(${sale.paymentType || '-'} ${sale.paymentDetails ? ` - ${sale.paymentDetails}` : ''})</small>
+          </td>
+          <td class="sales-actions">
+            <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus</button>
+          </td>
+        </tr>
+      `;
+    });
+  });
+
+  html += `</tbody></table>`;
+  html += `<div class="sales-total">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
+  html += `
+    <div class="sales-total" style="font-size:15px; margin-top:0;">
+      <span style="color:#27ae60;">Total Cash: Rp${formatRupiah(totalCash)}</span><br>
+      <span style="color:#2980b9;">Total Transfer: Rp${formatRupiah(totalTransfer)}</span>
+    </div>
+  `;
+  
+  if (selectedArtist) {
+    const artistStats = calculateArtistStats(selectedArtist, displaySales);
+    html += `
+      <div class="artist-stats" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+        <h5>Statistik Artist: ${selectedArtist}</h5>
+        <p>Total Penjualan: <strong>Rp${formatRupiah(artistStats.totalSales)}</strong></p>
+        <p>Total Item Terjual: <strong>${artistStats.totalItems}</strong></p>
+        <p>Jumlah Transaksi: <strong>${artistStats.transactionCount}</strong></p>
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="sales-actions-bottom">
+      <button id="downloadArtistExcelBtn" onclick="downloadArtistExcel('${selectedArtist}')">⬇️ Download Data</button>
+    </div>
+  `;
+  
+  artistSalesData.innerHTML = html;
+}
+
+
+function downloadArtistExcel() {
+  try {
+
+    const artistStats = {};
+    
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        const artistName = item.artist || 'Tanpa Artist';
+        const itemTotal = item.price * item.qty;
+        
+        if (!artistStats[artistName]) {
+          artistStats[artistName] = {
+            totalSales: 0,
+            totalItems: 0,
+            transactionCount: new Set()
+          };
+        }
+        
+        artistStats[artistName].totalSales += itemTotal;
+        artistStats[artistName].totalItems += item.qty;
+        artistStats[artistName].transactionCount.add(sale.time); 
+      });
+    });
+
+  
+    const sortedArtists = Object.entries(artistStats)
+      .map(([artistName, stats]) => ({
+        artistName,
+        totalSales: stats.totalSales,
+        totalItems: stats.totalItems,
+        transactionCount: stats.transactionCount.size
+      }))
+      .sort((a, b) => b.totalSales - a.totalSales);
+
+    if (sortedArtists.length === 0) {
+      showNotification("Belum ada data penjualan untuk artist!");
+      return;
+    }
+
+    const reportDate = new Date().toLocaleString('id-ID', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const ws_data = [
+      ["Laporan Peringkat Artist Berdasarkan Pendapatan - Data Diambil Pada: " + reportDate],
+      [],
+      ["Peringkat", "Nama Artist", "Total Pendapatan", "Jumlah Item Terjual", "Jumlah Transaksi"]
+    ];
+
+    sortedArtists.forEach((artist, index) => {
+      ws_data.push([
+        index + 1,
+        artist.artistName,
+        artist.totalSales,
+        artist.totalItems,
+        artist.transactionCount
+      ]);
+    });
+
+    const grandTotalSales = sortedArtists.reduce((sum, artist) => sum + artist.totalSales, 0);
+    const grandTotalItems = sortedArtists.reduce((sum, artist) => sum + artist.totalItems, 0);
+    const grandTotalTransactions = sortedArtists.reduce((sum, artist) => sum + artist.transactionCount, 0);
+    
+    ws_data.push([]);
+    ws_data.push(["TOTAL KESELURUHAN", "", grandTotalSales, grandTotalItems, grandTotalTransactions]);
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    const wscols = [
+      {wch: 10}, {wch: 30}, {wch: 20}, {wch: 20}, {wch: 15}
+    ];
+    ws['!cols'] = wscols;
+
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Peringkat_Artist");
+
+    const fileName = `Peringkat_Artist_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    showNotification("Data peringkat artist berhasil diunduh dalam format Excel!");
+  } catch (error) {
+    console.error("Gagal mengunduh data Excel:", error);
+    showNotification("Gagal mengunduh data Excel!");
+  }
+}
+
+function populateArtistSalesFilter() {
+  const artistFilter = document.getElementById('artistSalesFilter');
+  if (artistFilter) {
+    const currentValue = artistFilter.value;
+    artistFilter.innerHTML = '<option value="">Semua Artist</option><option value="Tanpa Artist">Tanpa Artist</option>';
+    
+ 
+    const allArtists = new Set();
+    
+
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        if (item.artist && item.artist.trim() !== '') {
+          allArtists.add(item.artist);
+        }
+      });
+    });
+    
+ 
+    artists.forEach(artist => {
+      if (artist && artist.trim() !== '') {
+        allArtists.add(artist);
+      }
+    });
+    
+
+    Array.from(allArtists).sort().forEach(artist => {
+      const option = document.createElement('option');
+      option.value = artist;
+      option.textContent = artist;
+      artistFilter.appendChild(option);
+    });
+    
+    artistFilter.value = currentValue;
+  }
+}
+
+function filterSalesByArtist() {
+  const selectedArtist = document.getElementById('artistSalesFilter').value;
+  renderArtistSalesTable(selectedArtist);
 }
