@@ -18,7 +18,7 @@ input[type="file"]::file-selector-button {
   --accent-color: #2980b9;
   --text-color: #333;
   --background-color: #d8d8d8;
-  --card-bg: white;
+  --card-bg: white; 
   --border-color: #ddd;
   --success-color: #27ae60;
   --danger-color: #e74c3c;
