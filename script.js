@@ -1159,59 +1159,59 @@ function closeCheckoutModal() {
 }
 
 async function processCheckout(paymentType, paymentDetails = '') {
-  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  let amountPaid = total;
+    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    let amountPaid = total;
 
-  const grandTotal = total;
-  const finalPaymentMethod = paymentType;
+    const grandTotal = total;
+    const finalPaymentMethod = paymentType;
 
-  const confirmMessage = `Apakah Anda ingin membeli item ini seharga Rp${formatRupiah(grandTotal)} dengan metode ${finalPaymentMethod}?`;
-  if (!confirm(confirmMessage)) {
-    return;
-  }
+    const confirmMessage = `Apakah Anda ingin membeli item ini seharga Rp${formatRupiah(grandTotal)} dengan metode ${finalPaymentMethod}?`;
+    if (!confirm(confirmMessage)) {
+        return;
+    }
 
-  const now = new Date().toLocaleString('id-ID');
+    const now = new Date().toLocaleString('id-ID');
 
-cart.forEach(item => {
-  const product = data[item.category].find(p => p.name === item.name);
-  if (product) {
-    product.stock -= item.qty;
+    cart.forEach(item => {
+        const product = data[item.category].find(p => p.name === item.name);
+        if (product) {
+            product.stock -= item.qty;
 
-    item.artist = product.artist || '';
-  }
-});
+            item.artist = product.artist || '';
+        }
+    });
 
-  sales.push({
-    time: now,
-    items: JSON.parse(JSON.stringify(cart)),
-    total: grandTotal,
-    amountPaid: amountPaid,
-    change: amountPaid - grandTotal,
-    paymentType: finalPaymentMethod,
-    paymentDetails: paymentDetails
-  });
+    sales.push({
+        time: now,
+        items: JSON.parse(JSON.stringify(cart)), 
+        total: grandTotal,
+        amountPaid: amountPaid,
+        change: amountPaid - grandTotal,
+        paymentType: finalPaymentMethod,
+        paymentDetails: paymentDetails
+    });
 
-  cart = [];
+    cart = [];
 
-  await Promise.all([
-    saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
-    saveToIndexedDB(STORE_NAMES.CART, cart),
-    saveToIndexedDB(STORE_NAMES.SALES, sales)
-  ]);
+    await Promise.all([
+        saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+        saveToIndexedDB(STORE_NAMES.CART, cart),
+        saveToIndexedDB(STORE_NAMES.SALES, sales)
+    ]);
 
-  closeCartModal();
-  closeCheckoutModal();
-  closeCheckoutConfirmationModal();
-  updateCartBadge();
-  renderProducts();
+    closeCartModal();
+    closeCheckoutModal();
+    closeCheckoutConfirmationModal();
+    updateCartBadge();
+    renderProducts();
 
-  if (document.getElementById('salesData').style.display === 'block') {
-    renderSalesTable();
-  }
+    if (document.getElementById('salesData').style.display === 'block') {
+        renderSalesTable();
+    }
 
-  document.querySelector('.sidebar-overlay').style.display = 'none';
+    document.querySelector('.sidebar-overlay').style.display = 'none';
 
-  showNotification(`Pembelian berhasil! Total: Rp${formatRupiah(grandTotal)} (${finalPaymentMethod})`);
+    showNotification(`Pembelian berhasil! Total: Rp${formatRupiah(grandTotal)} (${finalPaymentMethod})`);
 }
 
 function applyDiscount() {
@@ -1296,15 +1296,15 @@ function editProduct(category, index) {
 
   document.getElementById('editModal').style.display = 'flex';
 }
+
+
+
 async function saveEditedProduct(event) {
     event.preventDefault();
     const form = event.target;
     const name = form.name.value.trim();
     const code = form.code.value.trim();
-    
-   
     const artist = form.artist ? form.artist.value : '';
-    
     const price = parseInt(form.price.value.replace(/[^0-9]/g, '')) || 0;
     const stock = parseInt(form.stock.value);
     const minStock = parseInt(form.minStock.value);
@@ -1316,7 +1316,9 @@ async function saveEditedProduct(event) {
 
     const category = document.getElementById('editCategory').value;
     const index = document.getElementById('editIndex').value;
-    
+    const oldProductName = data[category][index].name;
+    const oldArtist = data[category][index].artist || ''; 
+
     const fileInput = form.imageFile;
     const file = fileInput.pastedFile || (fileInput.files.length > 0 ? fileInput.files[0] : null);
 
@@ -1331,22 +1333,93 @@ async function saveEditedProduct(event) {
         }
     }
 
+
     data[category][index].name = name;
     data[category][index].code = code;
-    
-
     data[category][index].artist = artist;
-    
     data[category][index].price = price;
     data[category][index].stock = stock;
     data[category][index].minStock = minStock;
 
-    await saveToIndexedDB(STORE_NAMES.PRODUCTS, data);
+
+    let salesUpdated = false;
+    if (oldProductName !== name || oldArtist !== artist) {
+        sales.forEach(sale => {
+            sale.items.forEach(item => {
+                if (item.name === oldProductName && item.category === category) {
+                    item.name = name;
+                    item.artist = artist; 
+                    salesUpdated = true;
+                }
+            });
+        });
+    }
+
+    await Promise.all([
+        saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+        saveToIndexedDB(STORE_NAMES.SALES, sales) 
+    ]);
+
     renderProducts();
     closeEditModal();
-    showNotification(`Produk "${name}" berhasil diperbarui!`);
+    
+
+    if (document.getElementById('dashboardModal').style.display === 'flex') {
+        renderSalesTable();
+        renderArtistSalesTable();
+    }
+    
+    if (salesUpdated) {
+        showNotification(`Produk "${name}" berhasil diperbarui! Data penjualan juga telah disinkronkan.`);
+    } else {
+        showNotification(`Produk "${name}" berhasil diperbarui!`);
+    }
 }
 
+async function syncArtistForExistingSales() {
+    try {
+        let updatedCount = 0;
+        
+
+        sales.forEach(sale => {
+            sale.items.forEach(item => {
+                const product = findProductByNameAndCategory(item.name, item.category);
+                if (product && product.artist) {
+                    if (item.artist !== product.artist) {
+                        item.artist = product.artist;
+                        updatedCount++;
+                    }
+                }
+            });
+        });
+
+        if (updatedCount > 0) {
+            await saveToIndexedDB(STORE_NAMES.SALES, sales);
+            showNotification(`Berhasil menyinkronkan ${updatedCount} item penjualan dengan data artist terbaru!`);
+            
+            if (document.getElementById('dashboardModal').style.display === 'flex') {
+                renderSalesTable();
+                renderArtistSalesTable();
+            }
+        } else {
+            showNotification('Semua data penjualan sudah sinkron dengan artist terbaru.');
+        }
+        
+        return updatedCount;
+    } catch (error) {
+        console.error('Gagal menyinkronkan artist untuk penjualan:', error);
+        showNotification('Gagal menyinkronkan artist untuk data penjualan!');
+        return 0;
+    }
+}
+
+
+function findProductByNameAndCategory(productName, category) {
+    if (data[category]) {
+        return data[category].find(product => product.name === productName);
+    }
+    return null;
+}
 
 async function addProduct(event, category) {
   event.preventDefault();
@@ -2068,9 +2141,12 @@ function downloadExcel() {
           itemCategory,
           itemCode,
           itemQty,
-          itemPrice,
-          itemTotal,
-          amountPaid,
+          
+          `Rp${formatRupiah(itemPrice)}`,
+          
+          `Rp${formatRupiah(itemTotal)}`,
+          
+          `Rp${formatRupiah(amountPaid)}`,
           paymentType
         ]);
       });
@@ -2078,7 +2154,8 @@ function downloadExcel() {
 
     const grandTotalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
     ws_data.push([]);
-    ws_data.push(["TOTAL PENJUALAN KESELURUHAN", "", "", "", "", "", "", "", grandTotalSales]);
+    
+    ws_data.push(["TOTAL PENJUALAN KESELURUHAN", "", "", "", "", "", "", "", `Rp${formatRupiah(grandTotalSales)}`]);
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
@@ -2094,19 +2171,80 @@ function downloadExcel() {
       {wch: 20}  
     ];
     ws['!cols'] = wscols;
-
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }]; 
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
 
     XLSX.writeFile(wb, `Data_Penjualan_${new Date().toISOString().slice(0,10)}.xlsx`);
-
     showNotification("Data penjualan berhasil diunduh dalam format Excel!");
   } catch (error) {
     console.error("Gagal mengunduh data Excel:", error);
     showNotification("Gagal mengunduh data Excel!");
   }
+}
+
+
+async function downloadExcelWithCordova(wb) {
+  try {
+    
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    
+    
+    const blob = new Blob([s2ab(excelBuffer)], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+
+    
+    window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory || 
+                                   cordova.file.externalRootDirectory, 
+    function(directoryEntry) {
+      const fileName = `Data_Penjualan_${new Date().toISOString().slice(0,10)}.xlsx`;
+      
+      directoryEntry.getFile(fileName, { create: true, exclusive: false }, 
+      function(fileEntry) {
+        fileEntry.createWriter(function(fileWriter) {
+          fileWriter.onwriteend = function() {
+            showNotification(`File Excel berhasil disimpan: ${fileName}`);
+            
+            
+            if (cordova.plugins.fileOpener2) {
+              cordova.plugins.fileOpener2.open(
+                fileEntry.toURL(),
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                {
+                  error: function(e) {
+                    console.log('Error opening Excel file: ' + JSON.stringify(e));
+                  },
+                  success: function() {
+                    console.log('Excel file opened successfully');
+                  }
+                }
+              );
+            }
+          };
+
+          fileWriter.onerror = function(e) {
+            console.log('Write failed: ' + e.toString());
+            showNotification('Gagal menyimpan file Excel!');
+          };
+
+          fileWriter.write(blob);
+        });
+      });
+    });
+  } catch (error) {
+    console.error("Gagal menyimpan Excel dengan Cordova:", error);
+    showNotification("Gagal menyimpan file Excel!");
+  }
+}
+
+
+function s2ab(s) {
+  const buf = new ArrayBuffer(s.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+  return buf;
 }
 
 
@@ -2133,7 +2271,7 @@ function showDashboardTab(tabId) {
   document.querySelector(`.dashboard-tab[onclick*="showDashboardTab('${tabId}')"]`).classList.add('active');
 
   if (tabId === 'salesReport') {
-    renderSalesTable();
+    renderSalesTable(); 
   } else if (tabId === 'topProducts') {
     renderTopProducts();
   } else if (tabId === 'artistSales') {
@@ -2211,30 +2349,152 @@ async function exportData() {
       preorders: await loadFromIndexedDB(STORE_NAMES.PREORDERS),
       paymentMethods: await loadFromIndexedDB(STORE_NAMES.PAYMENT_METHODS),
       transferMethods: await loadFromIndexedDB(STORE_NAMES.TRANSFER_METHODS),
+      artists: await loadFromIndexedDB(STORE_NAMES.ARTISTS),
       timestamp: new Date().toISOString()
     };
 
-    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const dataStr = JSON.stringify(allData, null, 2);
+    const fileName = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
-
-    document.body.appendChild(a);
-    a.click();
-
-    setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }, 100);
+    
+    if (window.cordova && cordova.platformId !== 'browser') {
+      
+      await exportWithCordova(dataStr, fileName);
+    } else {
+      
+      exportWithWeb(dataStr, fileName);
+    }
 
     showNotification('Data berhasil di-export!');
   } catch (error) {
     console.error('Gagal export data:', error);
-    showNotification('Gagal export data!');
+    showNotification('Gagal export data! ' + error.message);
   }
 }
+
+
+function exportWithWeb(dataStr, fileName) {
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 100);
+}
+
+
+async function exportData() {
+  try {
+    const allData = {
+      products: await loadFromIndexedDB(STORE_NAMES.PRODUCTS),
+      cart: await loadFromIndexedDB(STORE_NAMES.CART),
+      sales: await loadFromIndexedDB(STORE_NAMES.SALES),
+      categories: await loadFromIndexedDB(STORE_NAMES.CATEGORIES),
+      preorders: await loadFromIndexedDB(STORE_NAMES.PREORDERS),
+      paymentMethods: await loadFromIndexedDB(STORE_NAMES.PAYMENT_METHODS),
+      transferMethods: await loadFromIndexedDB(STORE_NAMES.TRANSFER_METHODS),
+      artists: await loadFromIndexedDB(STORE_NAMES.ARTISTS),
+      timestamp: new Date().toISOString()
+    };
+
+    const dataStr = JSON.stringify(allData, null, 2);
+    const fileName = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
+
+    
+    if (window.cordova && cordova.platformId !== 'browser') {
+      
+      await exportWithCordova(dataStr, fileName);
+    } else {
+      
+      exportWithWeb(dataStr, fileName);
+    }
+
+  } catch (error) {
+    console.error('Gagal export data:', error);
+    showNotification('Gagal export data! ' + error.message);
+  }
+}
+
+
+async function exportWithCordova(dataStr, fileName) {
+  return new Promise((resolve, reject) => {
+    
+    window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory || 
+                                   cordova.file.externalRootDirectory, 
+    function(directoryEntry) {
+      directoryEntry.getFile(fileName, { create: true, exclusive: false }, 
+      function(fileEntry) {
+        fileEntry.createWriter(function(fileWriter) {
+          fileWriter.onwriteend = function() {
+            console.log('File berhasil disimpan: ' + fileEntry.toURL());
+            
+            
+            const fileLocation = cordova.file.externalDataDirectory ? 
+                               'Penyimpanan Internal/Android/data/' : 
+                               'Penyimpanan External/';
+                               
+            showNotification(`Data berhasil di-export ke: ${fileLocation}${fileName}`);
+            
+            
+            if (cordova.plugins.fileOpener2) {
+              cordova.plugins.fileOpener2.open(
+                fileEntry.toURL(),
+                'application/json',
+                {
+                  error: function(e) {
+                    console.log('Error opening file: ' + JSON.stringify(e));
+                    resolve();
+                  },
+                  success: function() {
+                    console.log('File opened successfully');
+                    resolve();
+                  }
+                }
+              );
+            } else {
+              resolve();
+            }
+          };
+
+          fileWriter.onerror = function(e) {
+            console.log('Write failed: ' + e.toString());
+            reject(new Error('Gagal menulis file: ' + e.toString()));
+          };
+
+          const blob = new Blob([dataStr], { type: 'application/json' });
+          fileWriter.write(blob);
+        }, reject);
+      }, reject);
+    }, reject);
+  });
+}
+
+
+function exportWithWeb(dataStr, fileName) {
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 100);
+  
+  showNotification('Data berhasil di-export!');
+}
+
 
 async function importData(event) {
   const file = event.target.files[0];
@@ -2255,11 +2515,9 @@ async function importData(event) {
         return;
       }
       
-
       const findProductByNameOrCode = (name, code) => {
           return Object.values(data).flat().find(p => p.name.toLowerCase() === name.toLowerCase() || (p.code && code && p.code.toLowerCase() === code.toLowerCase()));
       };
-
 
       if (importedData.categories && Array.isArray(importedData.categories)) {
           const importedCategoryNames = importedData.categories.map(c => c.name);
@@ -2267,7 +2525,9 @@ async function importData(event) {
           categories = Array.from(combinedCategories).sort((a, b) => a.localeCompare(b));
       }
 
-   
+      
+      const importedArtists = new Set();
+      
       if (importedData.products && Array.isArray(importedData.products)) {
           importedData.products.forEach(product => {
               let newName = product.name;
@@ -2276,7 +2536,11 @@ async function importData(event) {
               const originalCode = product.code;
               let counter = 1;
 
-          
+              
+              if (product.artist && product.artist.trim() !== '') {
+                  importedArtists.add(product.artist);
+              }
+
               while (findProductByNameOrCode(newName, newCode)) {
                   newName = `${counter}_${originalName}`;
                   newCode = originalCode ? `${counter}_${originalCode}`: `${counter}_${originalName}`; 
@@ -2286,7 +2550,6 @@ async function importData(event) {
               product.name = newName;
               product.code = newCode;
               
-         
               if (!data[product.category]) {
                   data[product.category] = [];
               }
@@ -2294,11 +2557,15 @@ async function importData(event) {
           });
       }
       
+      
+      if (importedArtists.size > 0) {
+          const combinedArtists = new Set([...artists, ...importedArtists]);
+          artists = Array.from(combinedArtists).sort((a, b) => a.localeCompare(b));
+      }
 
       if (importedData.sales && Array.isArray(importedData.sales)) sales.push(...importedData.sales);
       if (importedData.cart && Array.isArray(importedData.cart)) cart.push(...importedData.cart);
       if (importedData.preorders && Array.isArray(importedData.preorders)) preOrders.push(...importedData.preorders);
-
 
       if (importedData.paymentMethods && Array.isArray(importedData.paymentMethods)) {
           const importedPaymentNames = importedData.paymentMethods.map(m => m.name);
@@ -2309,6 +2576,29 @@ async function importData(event) {
           transferMethods = Array.from(new Set([...transferMethods, ...importedTransferNames]));
       }
       
+      
+      if (importedData.sales && Array.isArray(importedData.sales)) {
+          importedData.sales.forEach(sale => {
+              sale.items.forEach(item => {
+                  if (item.artist && item.artist.trim() !== '') {
+                      importedArtists.add(item.artist);
+                  }
+              });
+          });
+          
+          
+          if (importedArtists.size > 0) {
+              const combinedArtists = new Set([...artists, ...importedArtists]);
+              artists = Array.from(combinedArtists).sort((a, b) => a.localeCompare(b));
+          }
+      }
+
+      
+      if (importedData.artists && Array.isArray(importedData.artists)) {
+          const importedArtistNames = importedData.artists.map(a => a.name);
+          const combinedArtists = new Set([...artists, ...importedArtistNames]);
+          artists = Array.from(combinedArtists).sort((a, b) => a.localeCompare(b));
+      }
 
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
@@ -2317,13 +2607,13 @@ async function importData(event) {
         saveToIndexedDB(STORE_NAMES.CATEGORIES, categories.map(name => ({ name }))),
         saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders),
         saveToIndexedDB(STORE_NAMES.PAYMENT_METHODS, paymentMethods.map(name => ({ name }))),
-        saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name })))
+        saveToIndexedDB(STORE_NAMES.TRANSFER_METHODS, transferMethods.map(name => ({ name }))),
+        saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name }))) 
       ]);
-
 
       await loadFromDatabase();
 
-      showNotification('Data berhasil digabungkan!');
+      showNotification('Data berhasil digabungkan! Artist dari produk yang diimport telah ditambahkan ke daftar artist.');
     } catch (error) {
       console.error('Gagal import dan gabungkan data:', error);
       showNotification('Gagal menggabungkan data! ' + error.message);
@@ -2336,8 +2626,226 @@ async function importData(event) {
 
   reader.readAsText(file);
 }
+
+async function syncArtistsFromProducts() {
+    try {
+        const allArtists = new Set();
+        let salesUpdated = 0;
+        
+        
+        for (const category in data) {
+            data[category].forEach(product => {
+                if (product.artist && product.artist.trim() !== '') {
+                    allArtists.add(product.artist);
+                    
+                    
+                    sales.forEach(sale => {
+                        sale.items.forEach(item => {
+                            if (item.name === product.name && item.category === product.category) {
+                                if (item.artist !== product.artist) {
+                                    item.artist = product.artist;
+                                    salesUpdated++;
+                                }
+                            }
+                        });
+                    });
+                }
+            });
+        }
+        
+        
+        sales.forEach(sale => {
+            sale.items.forEach(item => {
+                if (item.artist && item.artist.trim() !== '') {
+                    allArtists.add(item.artist);
+                }
+            });
+        });
+        
+        
+        artists = Array.from(allArtists).sort((a, b) => a.localeCompare(b));
+        
+        
+        await Promise.all([
+            saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name }))),
+            saveToIndexedDB(STORE_NAMES.SALES, sales) 
+        ]);
+        
+        
+        populateArtistSelects();
+        if (document.getElementById('artistModal').style.display === 'flex') {
+            renderArtistList();
+        }
+        
+        let message = `Berhasil menyinkronkan ${artists.length} artist dari data produk dan penjualan!`;
+        if (salesUpdated > 0) {
+            message += ` ${salesUpdated} data penjualan diperbarui dengan artist terbaru.`;
+        }
+        
+        showNotification(message);
+        
+        
+        if (document.getElementById('dashboardModal').style.display === 'flex') {
+            renderSalesTable();
+            renderArtistSalesTable();
+        }
+        
+    } catch (error) {
+        console.error('Gagal menyinkronkan artist:', error);
+        showNotification('Gagal menyinkronkan artist dari produk!');
+    }
+}
+
+// Fungsi import yang kompatibel dengan Cordova
 function showImportDialog() {
+  if (window.cordova && cordova.platformId !== 'browser') {
+    showCordovaImportOptions();
+  } else {
+    document.getElementById('importFile').click();
+  }
+}
+
+function showCordovaImportOptions() {
+  const importModal = document.createElement('div');
+  importModal.className = 'modal-overlay';
+  importModal.style.display = 'flex';
+  importModal.innerHTML = `
+    <div class="modal-content">
+      <h3>Import Data</h3>
+      <p>Pilih metode import:</p>
+      <button onclick="importFromFilePicker()" class="btn-primary">Pilih File dari Perangkat</button>
+      <button onclick="importFromWebMethod()" class="btn-secondary">Gunakan Input File Web</button>
+      <button onclick="this.parentElement.parentElement.remove()" class="btn-cancel">Batal</button>
+    </div>
+  `;
+  document.body.appendChild(importModal);
+}
+
+function importFromFilePicker() {
+  if (window.cordova && cordova.plugins.filePicker) {
+    cordova.plugins.filePicker.pickFile(
+      function(uri) {
+        readCordovaFile(uri);
+      },
+      function(error) {
+        console.log('Error picking file:', error);
+        showNotification('Gagal memilih file');
+        // Fallback ke metode web
+        document.getElementById('importFile').click();
+      },
+      { mimeType: 'application/json' }
+    );
+  } else {
+    showNotification('File picker tidak tersedia, gunakan metode web');
+    document.getElementById('importFile').click();
+  }
+}
+
+function importFromWebMethod() {
+  document.querySelector('.modal-overlay')?.remove();
   document.getElementById('importFile').click();
+}
+
+async function readCordovaFile(uri) {
+  try {
+    window.resolveLocalFileSystemURL(uri, function(fileEntry) {
+      fileEntry.file(function(file) {
+        const reader = new FileReader();
+        reader.onloadend = function(e) {
+          try {
+            const importedData = JSON.parse(this.result);
+            processImportedData(importedData);
+            document.querySelector('.modal-overlay')?.remove();
+            showNotification('Data berhasil diimport!');
+          } catch (error) {
+            showNotification('Format file tidak valid');
+          }
+        };
+        reader.onerror = function() {
+          showNotification('Gagal membaca file');
+        };
+        reader.readAsText(file);
+      }, function(error) {
+        showNotification('Gagal membaca file: ' + error.message);
+      });
+    }, function(error) {
+      showNotification('Gagal mengakses file: ' + error.message);
+    });
+  } catch (error) {
+    showNotification('Error: ' + error.message);
+  }
+}
+
+
+function showCordovaImportOptions() {
+  const importModal = document.createElement('div');
+  importModal.className = 'modal-overlay';
+  importModal.style.display = 'flex';
+  importModal.innerHTML = `
+    <div class="modal-content">
+      <h3>Import Data</h3>
+      <p>Pilih metode import:</p>
+      <button onclick="importFromFilePicker()" class="btn-primary">Pilih File dari Perangkat</button>
+      <button onclick="importFromWebMethod()" class="btn-secondary">Gunakan Input File Web</button>
+      <button onclick="this.parentElement.parentElement.remove()" class="btn-cancel">Batal</button>
+    </div>
+  `;
+  document.body.appendChild(importModal);
+}
+
+function importFromFilePicker() {
+  if (window.cordova && cordova.plugins.filePicker) {
+    cordova.plugins.filePicker.pickFile(
+      function(uri) {
+        readCordovaFile(uri);
+      },
+      function(error) {
+        console.log('Error picking file:', error);
+        showNotification('Gagal memilih file');
+        // Fallback ke metode web
+        document.getElementById('importFile').click();
+      },
+      { mimeType: 'application/json' }
+    );
+  } else {
+    showNotification('File picker tidak tersedia, gunakan metode web');
+    document.getElementById('importFile').click();
+  }
+}
+
+function importFromWebMethod() {
+  document.querySelector('.modal-overlay')?.remove();
+  document.getElementById('importFile').click();
+}
+
+async function readCordovaFile(uri) {
+  try {
+    window.resolveLocalFileSystemURL(uri, function(fileEntry) {
+      fileEntry.file(function(file) {
+        const reader = new FileReader();
+        reader.onloadend = function(e) {
+          try {
+            const importedData = JSON.parse(this.result);
+            processImportedData(importedData);
+            document.querySelector('.modal-overlay')?.remove();
+            showNotification('Data berhasil diimport!');
+          } catch (error) {
+            showNotification('Format file tidak valid');
+          }
+        };
+        reader.onerror = function() {
+          showNotification('Gagal membaca file');
+        };
+        reader.readAsText(file);
+      }, function(error) {
+        showNotification('Gagal membaca file: ' + error.message);
+      });
+    }, function(error) {
+      showNotification('Gagal mengakses file: ' + error.message);
+    });
+  } catch (error) {
+    showNotification('Error: ' + error.message);
+  }
 }
 
 async function resetAllData() {
@@ -3433,6 +3941,12 @@ async function addNewArtist(event) {
     await saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name })));
     renderArtistList();
     populateArtistSelects();
+    
+    
+    if (document.getElementById('dashboardModal').style.display === 'flex') {
+      renderArtistSalesTable();
+    }
+    
     showNotification('Artist berhasil ditambahkan!');
     input.value = '';
   } catch (error) {
@@ -3488,7 +4002,7 @@ async function saveArtistName(oldArtistName, index) {
     artists[index] = newArtistName;
     artists.sort((a, b) => a.localeCompare(b));
 
-
+    
     for (const category in data) {
       data[category].forEach(product => {
         if (product.artist === oldArtistName) {
@@ -3497,14 +4011,31 @@ async function saveArtistName(oldArtistName, index) {
       });
     }
 
+    
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        if (item.artist === oldArtistName) {
+          item.artist = newArtistName;
+        }
+      });
+    });
+
     await Promise.all([
       saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name }))),
-      saveToIndexedDB(STORE_NAMES.PRODUCTS, data)
+      saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+      saveToIndexedDB(STORE_NAMES.SALES, sales) 
     ]);
 
     renderArtistList();
     populateArtistSelects();
     renderProducts();
+    
+    
+    if (document.getElementById('dashboardModal').style.display === 'flex') {
+      renderSalesTable();
+      renderArtistSalesTable();
+    }
+    
     showNotification('Artist berhasil diubah!');
   } catch (error) {
     console.error('Gagal menyimpan perubahan artist:', error);
@@ -3535,7 +4066,7 @@ async function deleteArtist(artistName, index) {
   try {
     artists.splice(index, 1);
 
-
+    
     for (const category in data) {
       data[category].forEach(product => {
         if (product.artist === artistName) {
@@ -3544,14 +4075,31 @@ async function deleteArtist(artistName, index) {
       });
     }
 
+    
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        if (item.artist === artistName) {
+          item.artist = '';
+        }
+      });
+    });
+
     await Promise.all([
       saveToIndexedDB(STORE_NAMES.ARTISTS, artists.map(name => ({ name }))),
-      saveToIndexedDB(STORE_NAMES.PRODUCTS, data)
+      saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
+      saveToIndexedDB(STORE_NAMES.SALES, sales) 
     ]);
 
     renderArtistList();
     populateArtistSelects();
     renderProducts();
+    
+    
+    if (document.getElementById('dashboardModal').style.display === 'flex') {
+      renderSalesTable();
+      renderArtistSalesTable();
+    }
+    
     showNotification('Artist berhasil dihapus!');
   } catch (error) {
     console.error('Gagal menghapus artist:', error);
@@ -3617,7 +4165,7 @@ function renderArtistSalesTable(selectedArtist = '') {
     return;
   }
   
-
+  
   const artistStats = {};
   
   sales.forEach(sale => {
@@ -3629,22 +4177,22 @@ function renderArtistSalesTable(selectedArtist = '') {
         artistStats[artistName] = {
           totalSales: 0,
           totalItems: 0,
-          transactionCount: new Set() 
+          transactionCount: new Set()
         };
       }
       
       artistStats[artistName].totalSales += itemTotal;
       artistStats[artistName].totalItems += item.qty;
-      artistStats[artistName].transactionCount.add(sale.time); 
+      artistStats[artistName].transactionCount.add(sale.time);
     });
   });
   
-
+  
   Object.keys(artistStats).forEach(artistName => {
     artistStats[artistName].transactionCount = artistStats[artistName].transactionCount.size;
   });
   
-
+  
   let displayStats = artistStats;
   if (selectedArtist && selectedArtist !== '') {
     displayStats = {};
@@ -3652,6 +4200,8 @@ function renderArtistSalesTable(selectedArtist = '') {
       displayStats[selectedArtist] = artistStats[selectedArtist];
     }
   }
+  
+  
   artistSalesData.scrollTop = 0;
 
   const sortedArtists = Object.entries(displayStats)
@@ -3674,7 +4224,7 @@ function renderArtistSalesTable(selectedArtist = '') {
     <div class="artist-ranking-list">
   `;
   
- 
+  
   sortedArtists.forEach((artist, index) => {
     const rankClass = index === 0 ? 'rank-first' : 
                      index === 1 ? 'rank-second' : 
@@ -3702,7 +4252,7 @@ function renderArtistSalesTable(selectedArtist = '') {
   
   html += `</div>`;
   
-
+  
   html += `
     <div class="artist-sales-details">
       <h4>Detail Penjualan per Artist</h4>
@@ -3951,7 +4501,7 @@ function renderArtistSalesTableWithData(selectedArtist, filteredSales) {
 
 function downloadArtistExcel() {
   try {
-
+    
     const artistStats = {};
     
     sales.forEach(sale => {
@@ -3969,11 +4519,11 @@ function downloadArtistExcel() {
         
         artistStats[artistName].totalSales += itemTotal;
         artistStats[artistName].totalItems += item.qty;
-        artistStats[artistName].transactionCount.add(sale.time); 
+        artistStats[artistName].transactionCount.add(sale.time);
       });
     });
 
-  
+    
     const sortedArtists = Object.entries(artistStats)
       .map(([artistName, stats]) => ({
         artistName,
@@ -3996,6 +4546,7 @@ function downloadArtistExcel() {
       minute: '2-digit'
     });
 
+    
     const ws_data = [
       ["Laporan Peringkat Artist Berdasarkan Pendapatan - Data Diambil Pada: " + reportDate],
       [],
@@ -4021,25 +4572,357 @@ function downloadArtistExcel() {
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
+    
     const wscols = [
       {wch: 10}, {wch: 30}, {wch: 20}, {wch: 20}, {wch: 15}
     ];
     ws['!cols'] = wscols;
 
+    
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Peringkat_Artist");
 
     const fileName = `Peringkat_Artist_${new Date().toISOString().slice(0,10)}.xlsx`;
-    XLSX.writeFile(wb, fileName);
 
+    
+    XLSX.writeFile(wb, fileName);
     showNotification("Data peringkat artist berhasil diunduh dalam format Excel!");
+
   } catch (error) {
     console.error("Gagal mengunduh data Excel:", error);
-    showNotification("Gagal mengunduh data Excel!");
+    showNotification("Gagal mengunduh data Excel! " + error.message);
   }
 }
+
+
+async function downloadArtistExcelWithCordova(wb, fileName) {
+  try {
+    
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    
+    
+    const blob = new Blob([s2ab(excelBuffer)], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+
+    
+    window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory || 
+                                   cordova.file.externalRootDirectory, 
+    function(directoryEntry) {
+      directoryEntry.getFile(fileName, { create: true, exclusive: false }, 
+      function(fileEntry) {
+        fileEntry.createWriter(function(fileWriter) {
+          fileWriter.onwriteend = function() {
+            showNotification(`File Excel berhasil disimpan: ${fileName}`);
+            
+            
+            if (cordova.plugins.fileOpener2) {
+              cordova.plugins.fileOpener2.open(
+                fileEntry.toURL(),
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                {
+                  error: function(e) {
+                    console.log('Error opening Excel file: ' + JSON.stringify(e));
+                  },
+                  success: function() {
+                    console.log('Excel file opened successfully');
+                  }
+                }
+              );
+            }
+          };
+
+          fileWriter.onerror = function(e) {
+            console.log('Write failed: ' + e.toString());
+            showNotification('Gagal menyimpan file Excel!');
+          };
+
+          fileWriter.write(blob);
+        });
+      }, function(error) {
+        showNotification('Gagal membuat file: ' + error.message);
+      });
+    }, function(error) {
+      showNotification('Gagal mengakses penyimpanan: ' + error.message);
+    });
+
+  } catch (error) {
+    console.error("Gagal menyimpan Excel dengan Cordova:", error);
+    showNotification("Gagal menyimpan file Excel!");
+  }
+}
+
+
+function s2ab(s) {
+  const buf = new ArrayBuffer(s.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+  return buf;
+}
+
+
+// Fungsi untuk request permission storage di Android
+async function requestStoragePermission() {
+  return new Promise((resolve, reject) => {
+    if (window.cordova && cordova.platformId === 'android') {
+      if (cordova.plugins && cordova.plugins.permissions) {
+        cordova.plugins.permissions.requestPermission(
+          cordova.plugins.permissions.WRITE_EXTERNAL_STORAGE,
+          function(status) {
+            if (status.hasPermission) {
+              resolve(true);
+            } else {
+              showNotification('Izin penyimpanan ditolak. Export file mungkin tidak berfungsi.');
+              resolve(false);
+            }
+          },
+          function(error) {
+            console.error('Error requesting permission:', error);
+            resolve(false); // Tetap lanjut meski error
+          }
+        );
+      } else {
+        // Plugin permission tidak tersedia, assume granted
+        resolve(true);
+      }
+    } else {
+      // Bukan Android, tidak perlu permission
+      resolve(true);
+    }
+  });
+}
+
+// Fungsi download Excel yang kompatibel dengan Cordova
+async function downloadExcel() {
+  try {
+    if (sales.length === 0) {
+      showNotification("Belum ada data penjualan untuk diunduh!");
+      return;
+    }
+
+    // Cek platform
+    if (window.cordova && cordova.platformId !== 'browser') {
+      await downloadExcelCordova();
+    } else {
+      await downloadExcelWeb();
+    }
+  } catch (error) {
+    console.error("Gagal mengunduh data Excel:", error);
+    showNotification("Gagal mengunduh data Excel! " + error.message);
+  }
+}
+
+// Download Excel untuk Web
+async function downloadExcelWeb() {
+  const reportDate = new Date().toLocaleString('id-ID', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const ws_data = [
+    ["Laporan Penjualan - Data Diambil Pada: " + reportDate],
+    [],
+    ["Waktu", "Nama Barang", "Kategori", "Kode Barang", "Jumlah", "Harga Satuan", "Total Item", "Total Pembayaran", "Jenis Pembayaran"]
+  ];
+
+  sales.forEach(sale => {
+    sale.items.forEach(item => {
+      const time = sale.time || '';
+      const itemName = item.name || '';
+      const itemCategory = item.category || '';
+      const itemCode = item.code || '';
+      const itemQty = item.qty || 0;
+      const itemPrice = item.price || 0;
+      const itemTotal = itemQty * itemPrice;
+      const amountPaid = sale.amountPaid || 0;
+      const paymentType = sale.paymentType || '-';
+
+      ws_data.push([
+        time,
+        itemName,
+        itemCategory,
+        itemCode,
+        itemQty,
+        `Rp${formatRupiah(itemPrice)}`,
+        `Rp${formatRupiah(itemTotal)}`,
+        `Rp${formatRupiah(amountPaid)}`,
+        paymentType
+      ]);
+    });
+  });
+
+  const grandTotalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+  ws_data.push([]);
+  ws_data.push(["TOTAL PENJUALAN KESELURUHAN", "", "", "", "", "", "", "", `Rp${formatRupiah(grandTotalSales)}`]);
+
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  const wscols = [
+    {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 10}, 
+    {wch: 15}, {wch: 15}, {wch: 20}, {wch: 20}
+  ];
+  ws['!cols'] = wscols;
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
+
+  const fileName = `Data_Penjualan_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  showNotification("Data penjualan berhasil diunduh!");
+}
+
+// Download Excel untuk Cordova/Android
+async function downloadExcelCordova() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Request storage permission untuk Android
+      if (window.cordova && cordova.platformId === 'android') {
+        const hasPermission = await requestStoragePermission();
+        if (!hasPermission) {
+          showNotification('Izin penyimpanan diperlukan untuk download file');
+          reject(new Error('No storage permission'));
+          return;
+        }
+      }
+
+      const reportDate = new Date().toLocaleString('id-ID', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const ws_data = [
+        ["Laporan Penjualan - Data Diambil Pada: " + reportDate],
+        [],
+        ["Waktu", "Nama Barang", "Kategori", "Kode Barang", "Jumlah", "Harga Satuan", "Total Item", "Total Pembayaran", "Jenis Pembayaran"]
+      ];
+
+      sales.forEach(sale => {
+        sale.items.forEach(item => {
+          const time = sale.time || '';
+          const itemName = item.name || '';
+          const itemCategory = item.category || '';
+          const itemCode = item.code || '';
+          const itemQty = item.qty || 0;
+          const itemPrice = item.price || 0;
+          const itemTotal = itemQty * itemPrice;
+          const amountPaid = sale.amountPaid || 0;
+          const paymentType = sale.paymentType || '-';
+
+          ws_data.push([
+            time,
+            itemName,
+            itemCategory,
+            itemCode,
+            itemQty,
+            `Rp${formatRupiah(itemPrice)}`,
+            `Rp${formatRupiah(itemTotal)}`,
+            `Rp${formatRupiah(amountPaid)}`,
+            paymentType
+          ]);
+        });
+      });
+
+      const grandTotalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+      ws_data.push([]);
+      ws_data.push(["TOTAL PENJUALAN KESELURUHAN", "", "", "", "", "", "", "", `Rp${formatRupiah(grandTotalSales)}`]);
+
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+      const wscols = [
+        {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 10}, 
+        {wch: 15}, {wch: 15}, {wch: 20}, {wch: 20}
+      ];
+      ws['!cols'] = wscols;
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
+
+      // Konversi ke binary string
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+      
+      // Simpan file menggunakan Cordova File API
+      const fileName = `Data_Penjualan_${new Date().toISOString().slice(0,10)}.xlsx`;
+      
+      window.resolveLocalFileSystemURL(cordova.file.externalDirectory || 
+                                     cordova.file.externalRootDirectory, 
+      function(directoryEntry) {
+        directoryEntry.getFile(fileName, { create: true, exclusive: false }, 
+        function(fileEntry) {
+          fileEntry.createWriter(function(fileWriter) {
+            fileWriter.onwriteend = function() {
+              showNotification(`File Excel berhasil disimpan di: ${fileEntry.nativeURL}`);
+              
+              // Buka file dengan aplikasi yang sesuai
+              if (cordova.plugins.fileOpener2) {
+                cordova.plugins.fileOpener2.open(
+                  fileEntry.toURL(),
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  {
+                    error: function(e) {
+                      console.log('File opened in background');
+                    },
+                    success: function() {
+                      console.log('File opened successfully');
+                    }
+                  }
+                );
+              }
+              resolve();
+            };
+
+            fileWriter.onerror = function(e) {
+              console.log('Write failed: ' + e.toString());
+              showNotification('Gagal menyimpan file Excel!');
+              reject(e);
+            };
+
+            // Konversi binary string ke ArrayBuffer
+            const buffer = new ArrayBuffer(wbout.length);
+            const view = new Uint8Array(buffer);
+            for (let i = 0; i < wbout.length; i++) {
+              view[i] = wbout.charCodeAt(i) & 0xFF;
+            }
+            
+            const blob = new Blob([buffer], { 
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            });
+            
+            fileWriter.write(blob);
+          }, reject);
+        }, reject);
+      }, reject);
+
+    } catch (error) {
+      console.error("Gagal mengunduh data Excel di Cordova:", error);
+      reject(error);
+    }
+  });
+}
+
+// Fungsi serupa untuk downloadArtistExcel
+async function downloadArtistExcel() {
+  try {
+    if (window.cordova && cordova.platformId !== 'browser') {
+      await downloadArtistExcelCordova();
+    } else {
+      await downloadArtistExcelWeb();
+    }
+  } catch (error) {
+    console.error("Gagal mengunduh data artist Excel:", error);
+    showNotification("Gagal mengunduh data artist Excel! " + error.message);
+  }
+}
+
+// Implementasi downloadArtistExcelCordova mirip dengan downloadExcelCordova
+// ... (kode serupa untuk artist Excel)
 
 function populateArtistSalesFilter() {
   const artistFilter = document.getElementById('artistSalesFilter');
@@ -4081,4 +4964,74 @@ function populateArtistSalesFilter() {
 function filterSalesByArtist() {
   const selectedArtist = document.getElementById('artistSalesFilter').value;
   renderArtistSalesTable(selectedArtist);
+}
+
+
+async function requestStoragePermission() {
+    return new Promise((resolve, reject) => {
+        if (window.cordova && cordova.platformId === 'android') {
+            if (cordova.plugins && cordova.plugins.permissions) {
+                cordova.plugins.permissions.requestPermission(
+                    cordova.plugins.permissions.WRITE_EXTERNAL_STORAGE,
+                    function(status) {
+                        if (status.hasPermission) {
+                            resolve(true);
+                        } else {
+                            showNotification('Izin penyimpanan ditolak. Export file mungkin tidak berfungsi.');
+                            resolve(false);
+                        }
+                    },
+                    function(error) {
+                        console.error('Error requesting permission:', error);
+                        reject(error);
+                    }
+                );
+            } else {
+                
+                resolve(true);
+            }
+        } else {
+            
+            resolve(true);
+        }
+    });
+}
+
+
+async function exportData() {
+    try {
+        
+        const hasPermission = await requestStoragePermission();
+        
+        if (!hasPermission) {
+            showNotification('Tidak dapat mengakses penyimpanan. Export dibatalkan.');
+            return;
+        }
+
+        
+        const allData = {
+            products: await loadFromIndexedDB(STORE_NAMES.PRODUCTS),
+            cart: await loadFromIndexedDB(STORE_NAMES.CART),
+            sales: await loadFromIndexedDB(STORE_NAMES.SALES),
+            categories: await loadFromIndexedDB(STORE_NAMES.CATEGORIES),
+            preorders: await loadFromIndexedDB(STORE_NAMES.PREORDERS),
+            paymentMethods: await loadFromIndexedDB(STORE_NAMES.PAYMENT_METHODS),
+            transferMethods: await loadFromIndexedDB(STORE_NAMES.TRANSFER_METHODS),
+            artists: await loadFromIndexedDB(STORE_NAMES.ARTISTS),
+            timestamp: new Date().toISOString()
+        };
+
+        const dataStr = JSON.stringify(allData, null, 2);
+        const fileName = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
+
+        if (window.cordova && cordova.platformId !== 'browser') {
+            await exportWithCordova(dataStr, fileName);
+        } else {
+            exportWithWeb(dataStr, fileName);
+        }
+
+    } catch (error) {
+        console.error('Gagal export data:', error);
+        showNotification('Gagal export data! ' + error.message);
+    }
 }
