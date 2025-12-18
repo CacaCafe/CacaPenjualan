@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Style untuk area paste gambar */
+
     .paste-instruction {
       text-align: center;
       color: #888;
@@ -344,6 +344,20 @@
   <div class="modal-content" onclick="event.stopPropagation()">
     <button class="close-modal" onclick="closeArtistModal()">×</button>
     <h3>Kelola Artist</h3>
+    
+
+    <div style="margin-bottom: 15px;">
+      <button onclick="syncArtistsFromProducts()" class="btn-sync-artists" style="background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+        🔄 Sinkronkan dari Produk
+      </button>
+      <button onclick="syncArtistForExistingSales()" class="btn-sync-sales" style="background: #e67e22; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+        📊 Sinkronkan Penjualan
+      </button>
+      <small style="display: block; color: #666; margin-top: 5px;">
+        Sinkronkan artist dari produk ke data penjualan yang sudah ada
+      </small>
+    </div>
+    
     <form onsubmit="addNewArtist(event)">
       <input type="text" id="newArtistName" placeholder="Nama Artist Baru" required />
       <button type="submit" class="btn-add-artist">
@@ -354,4 +368,5 @@
   </div>
 </div>
 </body>
+<script src="script.js"></script>
 </html>
