@@ -380,9 +380,9 @@ input[type="file"]::file-selector-button {
 .cart-modal {
   position: fixed;
   bottom: 90px;
-  right: -350px; 
+  right: -350px;
   width: 350px;
-  max-height: 400px;
+  max-height: 500px; /* Diperbesar dari 400px */
   background: white;
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
@@ -390,7 +390,7 @@ input[type="file"]::file-selector-button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: right 0.3s ease; 
+  transition: right 0.3s ease;
 }
 
 
@@ -401,18 +401,18 @@ input[type="file"]::file-selector-button {
 
 @media (min-width: 768px) {
   .cart-modal {
-    top: var(--total-header-height); 
+    top: var(--total-header-height);
     position: fixed;
     right: -400px;
     width: 380px;
     height: calc(100% - var(--total-header-height));
-    max-height: 100%; 
-    border-radius: 0; 
+    max-height: 100%;
+    border-radius: 0;
     box-shadow: -2px 0 10px rgba(0,0,0,0.2);
-    z-index: 1000; 
-    display: flex; 
+    z-index: 1000;
+    display: flex;
     flex-direction: column;
-    transition: right 0.3s ease; 
+    transition: right 0.3s ease;
   }
 
   .cart-modal.open {
@@ -470,13 +470,35 @@ body.cart-sidebar-open {
   padding: 15px;
   overflow-y: auto;
   flex-grow: 1;
+  max-height: calc(500px - 120px); /* Sesuaikan dengan tinggi header + footer */
 }
-
 .cart-item {
   display: flex;
+  flex-direction: column;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.cart-item-info {
+  margin-bottom: 8px;
+}
+
+.cart-item-actions {
+  display: flex;
   justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cart-item-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
 }
 
 .cart-modal-footer {
@@ -520,7 +542,7 @@ body.cart-sidebar-open {
   font-weight: bold;
   width: 100%;
   text-align: left;
-  margin-bottom: 10px;
+  margin-bottom: 1px;
 }
 
 #salesData th[onclick] {
@@ -2067,11 +2089,7 @@ input:checked + .slider .emoji.moon {
   cursor: pointer;
 }
 
-#salesChartCanvas {
-  width: 100%;
-  height: 300px;
-  margin-top: 15px;
-}
+
 
 #downloadExcelBtn {
   background-color: var(--professional-accent);
@@ -2827,47 +2845,6 @@ input:checked + .slider .emoji.moon {
 
 
 
-#transferDetailsSection {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid var(--professional-border);
-}
-
-#transferDetailsSection label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: bold;
-  color: var(--professional-dark);
-}
-
-#transferDetailsSection select,
-#transferDetailsSection input[type="text"] {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 15px;
-  border: 1px solid var(--professional-border);
-  border-radius: 5px;
-  font-size: 16px;
-  box-sizing: border-box;
-}
-
-.btn-confirm-transfer {
-  background-color: var(--professional-info);
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  width: 100%;
-  transition: background-color 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.btn-confirm-transfer:hover {
-  background-color: #138496;
-}
-
 .btn-cancel-confirmation {
   background-color: var(--professional-secondary);
   color: white;
@@ -2892,7 +2869,7 @@ input:checked + .slider .emoji.moon {
   border: none;
   border-radius: 8px;
   font-weight: bold;
-  padding: 10px 15px;
+  padding: 10px 5px;
   cursor: pointer;
   font-size: 16px;
   transition: background 0.3s ease, transform 0.2s ease;
@@ -3576,4 +3553,807 @@ form.add-form label:has(+ select[name="artist"]) {
   border: 1px solid #ddd;
   border-radius: 4px;
   width: 200px;
+}
+
+/* Promo Rules Modal Styles */
+.promo-modal-content {
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.promo-info {
+  background: #e8f4fd;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #2980b9;
+}
+
+.promo-info p {
+  margin: 5px 0;
+}
+
+.promo-category-selection {
+  margin-bottom: 15px;
+}
+
+.promo-category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 15px;
+}
+
+.promo-category-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0f0f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.promo-category-checkbox input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.promo-input-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.promo-input-group input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.btn-add-promo {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.promo-rule-card {
+  background: #f9f9f9;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #eee;
+}
+
+.promo-rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.promo-rule-header h4 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.btn-delete-rule {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.promo-subrules-container {
+  margin-bottom: 12px;
+}
+
+.promo-subrule-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.promo-qty {
+  font-weight: bold;
+  color: #2980b9;
+}
+
+.promo-price {
+  font-weight: bold;
+  color: #27ae60;
+}
+
+.btn-remove-subrule {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 16px;
+  margin-left: auto;
+}
+
+.promo-add-subrule {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.promo-add-subrule input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.promo-add-subrule button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Sales table promo styles */
+.original-price-cell {
+  color: #999;
+  text-decoration: line-through;
+}
+
+.discounted-price-cell.has-discount {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 12px;
+}
+
+.sales-summary {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+
+
+.summary-row.discount {
+  color: #e74c3c;
+}
+
+.summary-row.total {
+  font-weight: bold;
+  font-size: 16px;
+  border-top: 1px solid #ddd;
+  margin-top: 5px;
+  padding-top: 8px;
+}
+
+.revenue-display .strikethrough {
+  font-size: 11px;
+}
+
+.revenue-amount {
+  color: #27ae60;
+}
+
+.discount-info {
+  color: #e74c3c;
+  font-size: 11px;
+}
+
+
+
+
+.cart-total-discount {
+    font-size: 13px;
+    color: #e74c3c;
+    text-align: left;
+}
+
+.cart-total-final {
+    font-size: 18px;
+    font-weight: bold;
+    color: #27ae60;
+    text-align: left;
+    margin-top: 5px;
+}
+
+.cart-total-rounding {
+    font-size: 11px;
+    color: #f39c12;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed #eee;
+    text-align: left;
+}
+
+.rounding-note {
+    font-size: 10px;
+    color: #999;
+    margin-left: 5px;
+}
+
+/* Style untuk item keranjang yang mendapat promo */
+.cart-item.has-promo {
+    background-color: #fff8e7;
+    border-left: 3px solid #f39c12;
+}
+
+.cart-item-price-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.original-price-cart {
+    color: #999;
+    text-decoration: line-through;
+    font-size: 12px;
+}
+
+.price-arrow {
+    color: #999;
+    font-size: 12px;
+}
+
+.promo-price {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.original-total-cart.strikethrough {
+    color: #999;
+    text-decoration: line-through;
+    font-size: 12px;
+}
+
+.total-arrow {
+    color: #999;
+    font-size: 12px;
+}
+
+.final-total-cart {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+/* Style untuk tabel laporan penjualan dengan kolom baru */
+.rounded-price-cell {
+    text-align: center;
+    background-color: #fef9e7;
+}
+
+.rounded-price {
+    color: #e67e22;
+    font-weight: bold;
+}
+
+.rounding-diff {
+    display: block;
+    font-size: 10px;
+    color: #f39c12;
+}
+
+.summary-row.total-after-promo {
+    color: #2980b9;
+}
+
+.summary-row.total-rounded {
+    font-weight: bold;
+    font-size: 15px;
+    color: #27ae60;
+    border-top: 1px solid #ddd;
+    margin-top: 5px;
+    padding-top: 8px;
+}
+
+.summary-row.rounding {
+    background-color: #fef9e7;
+    border-left: 3px solid #f39c12;
+    margin-top: 5px;
+    padding: 6px 0 6px 8px;
+}
+
+.rounding-amount {
+    color: #f39c12;
+    font-weight: bold;
+}
+
+/* Style untuk promo info di item penjualan */
+.sales-item-discount-info {
+    font-size: 11px;
+    color: #e74c3c;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.discount-badge {
+    display: inline-block;
+    background: #e74c3c;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+
+.total-details {
+    text-align: right;
+}
+
+.qty-badge {
+    display: inline-block;
+    background: #3498db;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-right: 8px;
+}
+
+.original-total.strikethrough {
+    color: #999;
+    text-decoration: line-through;
+    font-size: 12px;
+    margin-right: 8px;
+}
+
+.final-total {
+    color: #27ae60;
+    font-size: 14px;
+}
+
+.rounding-info {
+    display: block;
+    font-size: 10px;
+    color: #f39c12;
+    margin-top: 2px;
+}
+
+
+
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.summary-row.discount {
+    color: #e74c3c;
+}
+
+.summary-row.total {
+    font-weight: bold;
+    font-size: 15px;
+    border-top: 1px solid #ddd;
+    margin-top: 5px;
+    padding-top: 8px;
+}
+
+.summary-row.savings {
+    color: #27ae60;
+    font-weight: bold;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #ddd;
+}
+
+.summary-row.cash {
+    color: #27ae60;
+}
+
+.summary-row.transfer {
+    color: #2980b9;
+}
+
+.original-amount {
+    color: #999;
+    text-decoration: line-through;
+}
+
+.discount-amount {
+    color: #e74c3c;
+}
+
+.total-amount {
+    color: #27ae60;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Tombol aksi di laporan */
+.sales-actions-bottom {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    padding: 15px 0;
+    flex-wrap: wrap;
+}
+
+.btn-download {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-download:hover {
+    background-color: #219a52;
+    transform: translateY(-2px);
+}
+
+.btn-delete-all {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-delete-all:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+}
+
+/* Wrapper tabel dengan scroll horizontal */
+.sales-table-wrapper {
+    overflow-x: auto;
+    margin-top: 10px;
+}
+
+.sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.sales-table th,
+.sales-table td {
+    padding: 10px 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+    vertical-align: top;
+}
+
+.sales-table th {
+    background-color: #34495e;
+    color: white;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+.sales-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Responsive untuk mobile */
+@media (max-width: 768px) {
+    .sales-table {
+        font-size: 11px;
+    }
+    
+    .sales-table th,
+    .sales-table td {
+        padding: 6px 4px;
+    }
+    
+    
+    .sales-summary {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .btn-download,
+    .btn-delete-all {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+}
+
+/* Animasi untuk item yang mendapat promo */
+@keyframes promoPulse {
+    0% { border-left-color: #f39c12; }
+    50% { border-left-color: #f1c40f; }
+    100% { border-left-color: #f39c12; }
+}
+
+.cart-item.has-promo {
+    animation: promoPulse 2s ease-in-out;
+}
+
+
+/* Bundle info styling */
+.bundle-info {
+    font-size: 11px;
+    color: #e67e22;
+    background: #fff3e0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 5px 0;
+    display: inline-block;
+}
+
+.bundle-price-per-item {
+    font-size: 10px;
+    color: #f39c12;
+}
+
+.cart-savings {
+    font-size: 14px;
+    color: #27ae60;
+    text-align: right;
+    margin-top: 5px;
+    padding: 5px 10px;
+    background: #e8f8f5;
+    border-radius: 8px;
+}
+
+/* Perbaikan tampilan list item di keranjang */
+.cart-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cart-item-info strong {
+    font-size: 14px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.cart-item-code {
+    font-size: 11px;
+    color: #999;
+    margin-left: 5px;
+}
+
+.cart-qty-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.cart-btn-minus, .cart-btn-plus, .cart-btn-delete {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cart-btn-minus {
+    background: #e74c3c;
+    color: white;
+}
+
+.cart-btn-plus {
+    background: #27ae60;
+    color: white;
+}
+
+.cart-btn-delete {
+    background: #95a5a6;
+    color: white;
+}
+
+.cart-btn-minus:hover, .cart-btn-plus:hover, .cart-btn-delete:hover {
+    opacity: 0.8;
+    transform: scale(1.02);
+}
+
+/* Style untuk price breakdown di keranjang */
+.price-breakdown {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.promo-raw-price {
+    color: #e67e22;
+    font-size: 12px;
+}
+
+.rounded {
+    font-weight: bold;
+    color: #e74c3c;
+}
+
+.rounding-badge {
+    background: #f39c12;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 5px;
+}
+
+.rounding-info-cart {
+    font-size: 10px;
+    color: #f39c12;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.cart-rounding-saved {
+    font-size: 12px;
+    color: #f39c12;
+    text-align: right;
+    margin-top: 5px;
+    padding: 3px 8px;
+    background: #fff8e7;
+    border-radius: 6px;
+}
+
+/* Style untuk kolom baru di laporan penjualan */
+.promo-raw-price-cell {
+  text-align: center;
+  background-color: #fff3e0;
+}
+
+.promo-raw-price {
+  color: #e67e22;
+  font-weight: bold;
+}
+
+.rounded-price-cell {
+  text-align: center;
+  background-color: #e8f8f5;
+}
+
+.rounded-price {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.rounding-cell {
+  text-align: center;
+  background-color: #fef9e7;
+}
+
+.rounding-value {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.rounding-per-item {
+  display: block;
+  font-size: 10px;
+  color: #f39c12;
+}
+
+.no-rounding {
+  color: #ccc;
+}
+
+.sales-item-rounding-info {
+  font-size: 10px;
+  color: #f39c12;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.summary-row.total-after-promo {
+  color: #2980b9;
+}
+
+.summary-row.total-rounded {
+  font-weight: bold;
+  font-size: 15px;
+  color: #27ae60;
+  border-top: 1px solid #ddd;
+  margin-top: 5px;
+  padding-top: 8px;
+}
+
+.summary-row.rounding-saved {
+  background-color: #fef9e7;
+  border-left: 3px solid #f39c12;
+  margin-top: 5px;
+  padding: 6px 0 6px 8px;
+}
+
+.rounding-saved-amount {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.summary-row.total-discount {
+  border-top: 1px dashed #ddd;
+  margin-top: 5px;
+  padding-top: 8px;
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  flex: 1;
+  min-width: 200px;
+}
+
+.summary-card h4 {
+  margin-bottom: 12px;
+  color: #2c3e50;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.sales-summary {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .sales-summary {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .summary-card {
+    min-width: auto;
+  }
+}
+
+.summary-row.note {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #ddd;
+    font-size: 11px;
+}
+
+.payment-note {
+    color: #888;
+    font-style: italic;
 }
