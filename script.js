@@ -16,7 +16,7 @@ window.addEventListener('load', () => {
 window.addEventListener('resize', adjustContentMargin); 
 
 const DB_NAME = 'penjualan_barang_db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const STORE_NAMES = {
   PRODUCTS: 'products',
   CART: 'cart',
@@ -25,7 +25,8 @@ const STORE_NAMES = {
   CATEGORIES: 'categories',
   PREORDERS: 'preorders',
   PAYMENT_METHODS: 'paymentMethods',
-  TRANSFER_METHODS: 'transferMethods'
+  TRANSFER_METHODS: 'transferMethods',
+   PROMO_RULES: 'promoRules' 
 };
 let db;
 let data = {};
@@ -34,12 +35,8 @@ let cart = [];
 let artists = [];
 let sales = [];
 let preOrders = [];
-let currentAmountInput = '';
-let currentGrandTotalAfterDiscount = 0;
 let isCartModalOpen = false;
-let currentSortColumn = null;
-let sortDirection = 1;
-
+let promoRules = [];
 let paymentMethods = [];
 let transferMethods = [];
 
@@ -96,10 +93,14 @@ request.onupgradeneeded = (event) => {
     console.log(`Object store '${STORE_NAMES.TRANSFER_METHODS}' dibuat.`);
   }
 
-
   if (!db.objectStoreNames.contains(STORE_NAMES.ARTISTS)) {
     db.createObjectStore(STORE_NAMES.ARTISTS, { keyPath: 'name' });
     console.log(`Object store '${STORE_NAMES.ARTISTS}' dibuat.`);
+  }
+
+  if (!db.objectStoreNames.contains(STORE_NAMES.PROMO_RULES)) {
+    db.createObjectStore(STORE_NAMES.PROMO_RULES, { keyPath: 'id', autoIncrement: true });
+    console.log(`Object store '${STORE_NAMES.PROMO_RULES}' dibuat.`);
   }
 };
   });
@@ -109,6 +110,13 @@ function saveToIndexedDB(storeName, dataToSave) {
   return new Promise((resolve, reject) => {
     if (!db) {
       reject(new Error("Database belum diinisialisasi."));
+      return;
+    }
+
+
+    if (!db.objectStoreNames.contains(storeName)) {
+      console.warn(`Store ${storeName} tidak ditemukan, melewati penyimpanan`);
+      resolve();
       return;
     }
 
@@ -144,6 +152,7 @@ function saveToIndexedDB(storeName, dataToSave) {
       }
 
       if (items.length === 0) {
+        resolve();
         return;
       }
 
@@ -161,6 +170,13 @@ function loadFromIndexedDB(storeName) {
   return new Promise((resolve, reject) => {
     if (!db) {
       reject(new Error("Database belum diinisialisasi"));
+      return;
+    }
+
+
+    if (!db.objectStoreNames.contains(storeName)) {
+      console.warn(`Store ${storeName} tidak ditemukan, mengembalikan array kosong`);
+      resolve([]);
       return;
     }
 
@@ -219,26 +235,33 @@ async function loadFromDatabase() {
       loadedTransferMethods.map(m => m.name) :
       ['Bank BCA', 'Bank Mandiri', 'OVO', 'GoPay'];
 
+    try {
+      const loadedArtists = await loadFromIndexedDB(STORE_NAMES.ARTISTS);
+      artists = Array.isArray(loadedArtists) && loadedArtists.length > 0 ?
+        loadedArtists.map(a => a.name) :
+        [];
+      console.log("Artists dimuat:", artists);
+    } catch (error) {
+      console.warn("Gagal memuat artists, menggunakan array kosong:", error);
+      artists = [];
+    }
 
-try {
-  const loadedArtists = await loadFromIndexedDB(STORE_NAMES.ARTISTS);
-  artists = Array.isArray(loadedArtists) && loadedArtists.length > 0 ?
-    loadedArtists.map(a => a.name) :
-    [];
-  console.log("Artists dimuat:", artists);
-} catch (error) {
-  console.warn("Gagal memuat artists, menggunakan array kosong:", error);
-  artists = [];
-}
+    try {
+      const loadedPromoRules = await loadFromIndexedDB('promoRules');
+      promoRules = Array.isArray(loadedPromoRules) ? loadedPromoRules : [];
+      console.log("Promo rules dimuat:", promoRules);
+    } catch (error) {
+      console.warn("Gagal memuat promo rules, menggunakan array kosong:", error);
+      promoRules = [];
+    }
 
-    console.log("Keranjang, penjualan, pre-order, metode pembayaran, dan artists dimuat.");
+    console.log("Keranjang, penjualan, pre-order, metode pembayaran, artists, dan promo rules dimuat.");
 
     console.log("Data berhasil dimuat. Memperbarui UI...");
     updateNavbarCategories();
     renderProducts();
     updateCartBadge();
     
-
     setTimeout(() => {
       populateArtistSelects();
     }, 100);
@@ -275,7 +298,7 @@ async function saveAllData() {
     const categoriesToSave = categories.map(name => ({ name }));
     await saveToIndexedDB(STORE_NAMES.CATEGORIES, categoriesToSave);
     await saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders);
-    
+    await saveToIndexedDB('promoRules', promoRules);
 
     const artistsToSave = artists.map(name => ({ name }));
     await saveToIndexedDB(STORE_NAMES.ARTISTS, artistsToSave);
@@ -734,110 +757,163 @@ function updateCartBadge() {
 }
 
 function renderCartModalContent() {
-  const cartContent = document.getElementById('cartModalContent');
-  const cartTotal = document.getElementById('cartTotal');
-  const cartModalFooter = document.querySelector('.cart-modal-footer');
+    const cartContent = document.getElementById('cartModalContent');
+    const cartTotal = document.getElementById('cartTotal');
+    const cartModalFooter = document.querySelector('.cart-modal-footer');
 
-  if (cart.length === 0) {
-    cartContent.innerHTML = '<div style="text-align: center; padding: 20px;">Keranjang kosong</div>';
-    cartTotal.textContent = '0';
-    const quickCountSection = cartModalFooter.querySelector('.quick-count-section');
-    if (quickCountSection) quickCountSection.remove();
+    if (cart.length === 0) {
+        cartContent.innerHTML = '<div style="text-align: center; padding: 20px;">Keranjang kosong</div>';
+        cartTotal.textContent = '0';
+        const quickCountSection = cartModalFooter.querySelector('.quick-count-section');
+        if (quickCountSection) quickCountSection.remove();
+        const checkoutBtn = cartModalFooter.querySelector('.btn-checkout-cart');
+        if (checkoutBtn) checkoutBtn.remove();
+        return;
+    }
 
-    const checkoutBtn = cartModalFooter.querySelector('.btn-checkout-cart');
-    if (checkoutBtn) checkoutBtn.remove();
-    return;
-  }
 
-  let html = '';
-  let total = 0;
+    const cartWithPromo = recalculateCartPrices();
+    let html = '<div class="cart-items-list">';
+    let total = 0;
+    let totalOriginal = 0;
 
-  cart.forEach((item, index) => {
-    const itemTotal = item.price * item.qty;
-    total += itemTotal;
+    cartWithPromo.forEach((item, index) => {
+        const displayPrice = item.displayPrice || item.price;
+        const originalPrice = item.originalPrice || item.price;
+        const hasDiscount = Math.abs(displayPrice - originalPrice) > 1;
+        const itemTotal = item.totalPriceForItem || (displayPrice * item.qty);
+        const originalTotalItem = originalPrice * item.qty;
+        total += itemTotal;
+        totalOriginal += originalTotalItem;
 
-    html += `
-      <div class="cart-item">
-        <div>
-          <strong>${item.name}</strong><br>
-          ${item.qty} × Rp${formatRupiah(item.price)}
-        </div>
-        <div>
-          <span>Rp${formatRupiah(itemTotal)}</span>
-          <div class="cart-item-controls">
-            <button onclick="decreaseCartItem(${index})">−</button>
-            <button onclick="increaseCartItem(${index})">+</button>
-            <button onclick="removeCartItem(${index})">🗑️</button>
-          </div>
-        </div>
-      </div>
-    `;
-  });
+        let bundleInfoHtml = '';
+        if (item.promoBundleQty && item.promoBundlePrice) {
+            bundleInfoHtml = `
+                
+            `;
+        }
 
-  cartContent.innerHTML = html;
-  cartTotal.textContent = formatRupiah(total);
+        html += `
+            <div class="cart-item ${hasDiscount ? 'has-promo' : ''}">
+                <div class="cart-item-info">
+                    <strong>${escapeHtml(item.name)}</strong>
+                    ${item.code ? `<span class="cart-item-code">(${escapeHtml(item.code)})</span>` : ''}
+                    ${bundleInfoHtml}
+                </div>
+                <div class="cart-item-actions">
+                    <div class="cart-item-total">
+                        ${hasDiscount ? 
+                            `<span class="original-total-cart strikethrough">Rp${formatRupiah(originalTotalItem)}</span>
+                             <span class="total-arrow">→</span>
+                             <span class="final-total-cart">Rp${formatRupiah(itemTotal)}</span>` : 
+                            `<span class="final-total-cart">Rp${formatRupiah(itemTotal)}</span>`
+                        }
+                    </div>
+                    <div class="cart-item-controls">
+                        <button onclick="decreaseCartItem(${index})" class="cart-btn-minus">−</button>
+                        <span class="cart-qty-display">${item.qty}</span>
+                        <button onclick="increaseCartItem(${index})" class="cart-btn-plus">+</button>
+                        <button onclick="removeCartItem(${index})" class="cart-btn-delete">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    cartContent.innerHTML = html;
+    
+    const totalDiscount = totalOriginal - total;
+    let totalHtml = `<div class="cart-total-final">💰 Total: Rp${formatRupiah(Math.floor(total))}</div>`;
+    if (totalDiscount > 0) {
+        totalHtml += `<div class="cart-savings">🎉 Hemat: Rp${formatRupiah(totalDiscount)}</div>`;
+    }
+    cartTotal.innerHTML = totalHtml;
 
-  let quickCountSection = cartModalFooter.querySelector('.quick-count-section');
-  if (!quickCountSection) {
-    quickCountSection = document.createElement('div');
-    quickCountSection.className = 'quick-count-section';
-    quickCountSection.innerHTML = `
-      <div class="quick-count-buttons">
-        <button onclick="calculateQuickChange(10000)">10.000</button>
-        <button onclick="calculateQuickChange(20000)">20.000</button>
-        <button onclick="calculateQuickChange(50000)">50.000</button>
-        <button onclick="calculateQuickChange(100000)">100.000</button>
-      </div>
-      <div class="quick-count-result" id="quickCountResult">
-        Kembalian: Rp0
-      </div>
-    `;
-    cartModalFooter.appendChild(quickCountSection);
-  } else {
-    document.getElementById('quickCountResult').textContent = 'Kembalian: Rp0';
-  }
 
-  let checkoutBtn = cartModalFooter.querySelector('.btn-checkout-cart');
-  if (!checkoutBtn) {
-    checkoutBtn = document.createElement('button');
-    checkoutBtn.className = 'btn-checkout-cart';
-    checkoutBtn.textContent = 'Checkout';
-    checkoutBtn.onclick = showCheckoutConfirmationModal;
-    cartModalFooter.appendChild(checkoutBtn);
-  }
+    let quickCountSection = cartModalFooter.querySelector('.quick-count-section');
+    if (!quickCountSection) {
+        quickCountSection = document.createElement('div');
+        quickCountSection.className = 'quick-count-section';
+        quickCountSection.innerHTML = `
+            <div class="quick-count-title">Hitung Kembalian:</div>
+            <div class="quick-count-buttons">
+                <button onclick="calculateQuickChange(10000)" class="quick-count-btn">10.000</button>
+                <button onclick="calculateQuickChange(20000)" class="quick-count-btn">20.000</button>
+                <button onclick="calculateQuickChange(50000)" class="quick-count-btn">50.000</button>
+                <button onclick="calculateQuickChange(100000)" class="quick-count-btn">100.000</button>
+            </div>
+            <div class="quick-count-result" id="quickCountResult">
+                Kembalian: Rp0
+            </div>
+        `;
+        cartModalFooter.appendChild(quickCountSection);
+    } else {
+        const totalForQuickCount = Math.floor(total);
+        const manualAmountInput = document.getElementById('manualAmountInput');
+        if (manualAmountInput && manualAmountInput.value) {
+            const amount = parseInt(manualAmountInput.value.replace(/\./g, ''));
+            const change = amount - totalForQuickCount;
+            document.getElementById('quickCountResult').innerHTML = change >= 0 ? 
+                `Kembalian: Rp${formatRupiah(change)}` : 
+                `Kembalian: <span style="color:red;">Kurang Rp${formatRupiah(Math.abs(change))}</span>`;
+        }
+    }
+
+    let checkoutBtn = cartModalFooter.querySelector('.btn-checkout-cart');
+    if (!checkoutBtn) {
+        checkoutBtn = document.createElement('button');
+        checkoutBtn.className = 'btn-checkout-cart';
+        checkoutBtn.textContent = '✅ Checkout Sekarang';
+        checkoutBtn.onclick = showCheckoutConfirmationModal;
+        cartModalFooter.appendChild(checkoutBtn);
+    }
 }
+
 
 function calculateQuickChange(amountPaid) {
-  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const change = amountPaid - total;
-  const quickCountResultElement = document.getElementById('quickCountResult');
-  if (change < 0) {
-    quickCountResultElement.innerHTML = `Kembalian: <span style="color: red;">Kurang Rp${formatRupiah(Math.abs(change))}</span>`;
-  } else {
-    quickCountResultElement.textContent = `Kembalian: Rp${formatRupiah(change)}`;
-  }
+    const { total } = calculateCartTotalWithPromo();
+    const change = amountPaid - total;
+    const quickCountResultElement = document.getElementById('quickCountResult');
+    
+    if (!quickCountResultElement) return;
+    
+    if (change < 0) {
+        quickCountResultElement.innerHTML = `Kembalian: <span style="color: #e53935;">Kurang Rp${formatRupiah(Math.abs(change))}</span>`;
+    } else {
+        quickCountResultElement.innerHTML = `Kembalian: <span style="color: #2e7d32;">Rp${formatRupiah(change)}</span>`;
+    }
+    
+    currentAmountInput = amountPaid.toString();
 }
 
-function decreaseCartItem(index) {
-  if (cart[index].qty > 1) {
-    cart[index].qty -= 1;
-  } else {
-    cart.splice(index, 1);
-  }
-  saveToIndexedDB(STORE_NAMES.CART, cart).then(() => {
-    renderCartModalContent();
+async function decreaseCartItem(index) {
+    if (cart[index].qty > 1) {
+        cart[index].qty -= 1;
+    } else {
+        cart.splice(index, 1);
+    }
+    await saveToIndexedDB(STORE_NAMES.CART, cart);
+    
+    if (isCartModalOpen) {
+        renderCartModalContent();
+    }
     updateCartBadge();
     renderProducts();
-  });
 }
 
-function removeCartItem(index) {
-  cart.splice(index, 1);
-  saveToIndexedDB(STORE_NAMES.CART, cart).then(() => {
-    renderCartModalContent();
-    updateCartBadge();
-    renderProducts();
-  });
+async function removeCartItem(index) {
+    if (confirm(`Hapus "${cart[index].name}" dari keranjang?`)) {
+        cart.splice(index, 1);
+        await saveToIndexedDB(STORE_NAMES.CART, cart);
+        
+        if (isCartModalOpen) {
+            renderCartModalContent();
+        }
+        updateCartBadge();
+        renderProducts();
+        showNotification('Item dihapus dari keranjang');
+    }
 }
 
 function increaseQuantity(category, index) {
@@ -873,47 +949,51 @@ function decreaseQuantity(category, index) {
 }
 
 async function updateCart(category, index, qty) {
-  try {
-    const product = data[category]?.[index];
-    if (!product) {
-      throw new Error('Produk tidak ditemukan');
+    try {
+        const product = data[category]?.[index];
+        if (!product) {
+            throw new Error('Produk tidak ditemukan');
+        }
+
+        const cartIndex = cart.findIndex(item => item.name === product.name);
+
+        if (qty > 0) {
+            const cartItem = {
+                name: product.name,
+                price: product.price,
+                qty: qty,
+                category: product.category,
+                image: product.image,
+                code: product.code,
+                artist: product.artist || ''
+            };
+
+            if (cartIndex >= 0) {
+                cart[cartIndex] = cartItem;
+            } else {
+                cart.push(cartItem);
+            }
+        } else if (cartIndex >= 0) {
+            cart.splice(cartIndex, 1);
+        }
+
+        await saveToIndexedDB(STORE_NAMES.CART, cart);
+        updateCartBadge();
+        renderProducts();
+
+        if (isCartModalOpen) {
+            renderCartModalContent();
+        }
+        
+        const { items } = calculateCartTotalWithPromo();
+        const updatedItem = items.find(i => i.name === product.name);
+        if (updatedItem && updatedItem.discountApplied > 0 && qty > 0) {
+            showNotification(`🎉 Promo bundle! Harga ${product.name}: Rp${formatRupiah(updatedItem.discountedPrice)}/item (hemat Rp${formatRupiah(updatedItem.discountApplied)}/item)`);
+        }
+    } catch (error) {
+        console.error('Gagal memperbarui keranjang:', error);
+        showNotification('Gagal memperbarui keranjang');
     }
-
-    const cartIndex = cart.findIndex(item => item.name === product.name);
-
-    if (qty > 0) {
-      const cartItem = {
-        name: product.name,
-        price: product.price,
-        qty: qty,
-        category: product.category,
-        image: product.image,
-        code: product.code
-      };
-
-      if (cartIndex >= 0) {
-        cart[cartIndex] = cartItem;
-      } else {
-        cart.push(cartItem);
-      }
-    } else if (cartIndex >= 0) {
-      cart.splice(cartIndex, 1);
-    }
-
-    await saveToIndexedDB(STORE_NAMES.CART, cart);
-    updateCartBadge();
-    renderProducts(); 
-
-
-    if (isCartModalOpen) { 
-      renderCartModalContent();
-    }
-
-
-  } catch (error) {
-    console.error('Gagal memperbarui keranjang:', error);
-    showNotification('Gagal memperbarui keranjang');
-  }
 }
 
 
@@ -1159,36 +1239,85 @@ function closeCheckoutModal() {
 }
 
 async function processCheckout(paymentType, paymentDetails = '') {
-    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    let amountPaid = total;
 
-    const grandTotal = total;
-    const finalPaymentMethod = paymentType;
+    const cartWithPromo = recalculateCartPrices();
+    
 
-    const confirmMessage = `Apakah Anda ingin membeli item ini seharga Rp${formatRupiah(grandTotal)} dengan metode ${finalPaymentMethod}?`;
+    const roundedCart = cartWithPromo.map(item => {
+        const pricePerItemRaw = item.displayPrice; 
+        
+        const roundedPricePerItem = Math.floor(pricePerItemRaw / 1000) * 1000;
+        const roundingDifference = pricePerItemRaw - roundedPricePerItem;
+        const itemTotalRounded = roundedPricePerItem * item.qty;
+        const roundingTotal = roundingDifference * item.qty;
+        
+        return {
+            ...item,
+            roundedPrice: roundedPricePerItem,
+            roundingDifference: roundingDifference,
+            roundingTotal: roundingTotal,
+            totalPriceForItem: itemTotalRounded
+        };
+    });
+    
+
+    const grandTotalRounded = roundedCart.reduce((sum, item) => sum + item.totalPriceForItem, 0);
+    const originalTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const totalAfterPromo = cartWithPromo.reduce((sum, item) => sum + (item.displayPrice * item.qty), 0);
+    const totalRoundingSaved = totalAfterPromo - grandTotalRounded;
+    
+    const confirmMessage = `Apakah Anda ingin membeli item ini?\n\n` +
+        `Harga Normal: Rp${formatRupiah(originalTotal)}\n` +
+        `Harga Promo: Rp${formatRupiah(totalAfterPromo)}\n` +
+        `Setelah Pembulatan: Rp${formatRupiah(grandTotalRounded)}\n` +
+        `Sisa Pembulatan: Rp${formatRupiah(totalRoundingSaved)}\n` +
+        `Metode: ${paymentType}?\n\nKlik OK untuk konfirmasi.`;
+    
     if (!confirm(confirmMessage)) {
         return;
     }
 
     const now = new Date().toLocaleString('id-ID');
+    
 
     cart.forEach(item => {
         const product = data[item.category].find(p => p.name === item.name);
         if (product) {
             product.stock -= item.qty;
-
-            item.artist = product.artist || '';
         }
     });
-
+    
+ 
+    const saleItems = roundedCart.map(item => ({
+        name: item.name,
+        category: item.category,
+        image: item.image,
+        code: item.code,
+        price: item.price,  
+        originalPrice: item.price,
+        promoPrice: item.displayPrice,  
+        roundedPrice: item.roundedPrice,  
+        discountApplied: item.discountApplied,
+        roundingDifference: item.roundingDifference,
+        roundingTotal: item.roundingTotal,
+        qty: item.qty,
+        artist: item.artist,
+        promoBundleQty: item.promoBundleQty,
+        promoBundlePrice: item.promoBundlePrice
+    }));
+    
     sales.push({
         time: now,
-        items: JSON.parse(JSON.stringify(cart)), 
-        total: grandTotal,
-        amountPaid: amountPaid,
-        change: amountPaid - grandTotal,
-        paymentType: finalPaymentMethod,
-        paymentDetails: paymentDetails
+        items: saleItems,
+        originalTotal: originalTotal,
+        totalAfterPromo: totalAfterPromo,  
+        total: grandTotalRounded,  
+        totalRoundingSaved: totalRoundingSaved,
+        amountPaid: grandTotalRounded,
+        change: 0,
+        paymentType: paymentType,
+        paymentDetails: paymentDetails,
+        promoApplied: totalAfterPromo < originalTotal
     });
 
     cart = [];
@@ -1205,13 +1334,16 @@ async function processCheckout(paymentType, paymentDetails = '') {
     updateCartBadge();
     renderProducts();
 
-    if (document.getElementById('salesData').style.display === 'block') {
+    if (document.getElementById('salesData') && document.getElementById('salesData').style.display === 'block') {
         renderSalesTable();
     }
+    
+    if (document.getElementById('dashboardModal').style.display === 'flex') {
+        renderTopProducts();
+        renderArtistSalesTable();
+    }
 
-    document.querySelector('.sidebar-overlay').style.display = 'none';
-
-    showNotification(`Pembelian berhasil! Total: Rp${formatRupiah(grandTotal)} (${finalPaymentMethod})`);
+    showNotification(`Pembelian berhasil! Total: Rp${formatRupiah(grandTotalRounded)} (${paymentType})`);
 }
 
 function applyDiscount() {
@@ -1510,32 +1642,7 @@ async function addProduct(event, category) {
   }
 }
 
-function fixImageOrientation(img, orientation) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  if (orientation > 4 && orientation < 9) {
-    canvas.width = img.height;
-    canvas.height = img.width;
-  } else {
-    canvas.width = img.width;
-    canvas.height = img.height;
-  }
 
-  switch (orientation) {
-    case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
-    case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
-    case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break;
-    case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
-    case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break;
-    case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break;
-    case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break;
-    default: ctx.transform(1, 0, 0, 1, 0, 0); break;
-  }
-
-  ctx.drawImage(img, 0, 0);
-  img.src = canvas.toDataURL();
-}
 
 function previewImage(event, context) {
   const fileInput = event.target;
@@ -1870,29 +1977,44 @@ function renderSalesTable() {
   }
 
   let html = `
-    <table>
-      <thead>
-        <tr>
-          <th>Waktu</th>
-          <th>Barang</th>
-          <th>Total Item</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="sales-table-wrapper">
+      <table class="sales-table">
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>Barang</th>
+            <th>Harga Asli</th>
+            <th>Harga Promo Asli</th>
+            <th>Harga Setelah Pembulatan</th>
+            <th>Sisa Pembulatan</th>
+            <th>Total Item</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
   `;
 
-  let grandTotal = 0;
-  let totalCash = 0;
-  let totalTransfer = 0;
+  let grandTotalAfterPromo = 0; 
+  let grandTotalRounded = 0;     
+  let grandOriginalTotal = 0;
+  let grandRoundingSaved = 0;    
+  let totalCash = 0;              
+  let totalTransfer = 0;        
 
   sales.forEach((sale, saleIndex) => {
-    grandTotal += sale.total;
+
+    const saleTotalAfterPromo = sale.totalAfterPromo || sale.total;
+    grandTotalAfterPromo += saleTotalAfterPromo;
+    grandTotalRounded += sale.total;
+    grandOriginalTotal += sale.originalTotal || sale.total;
+    
+
     if (sale.paymentType && sale.paymentType.toLowerCase() === 'cash') {
-      totalCash += sale.total;
+      totalCash += saleTotalAfterPromo;
     } else if (sale.paymentType && sale.paymentType.toLowerCase() !== 'cash') {
-      totalTransfer += sale.total;
+      totalTransfer += saleTotalAfterPromo;
     }
+    
     const itemsByProduct = {};
     sale.items.forEach(item => {
       const key = `${item.name}-${item.category}`;
@@ -1902,54 +2024,163 @@ function renderSalesTable() {
           category: item.category,
           image: item.image,
           qty: 0,
-          price: item.price,
+          originalPrice: item.price,
+          promoPriceRaw: item.promoPrice || item.price,
+          roundedPrice: item.roundedPrice || item.price,
+          roundingDifference: item.roundingDifference || 0,
+          roundingTotal: item.roundingTotal || 0,
           code: item.code
         };
       }
       itemsByProduct[key].qty += item.qty;
+      grandRoundingSaved += (item.roundingTotal || 0);
     });
 
     Object.values(itemsByProduct).forEach(item => {
+      const hasDiscount = item.promoPriceRaw !== item.originalPrice;
+      const hasRounding = item.roundingDifference > 0;
+      const totalPerItemRounded = item.roundedPrice * item.qty;
+      const originalTotalPerItem = item.originalPrice * item.qty;
+      const roundingTotalForItem = item.roundingTotal;
+      
       html += `
-        <tr class="sales-item-row">
-          <td>${sale.time}</td>
-          <td>
+        <tr class="sales-item-row ${hasDiscount ? 'has-promo' : ''}">
+          <td class="sale-time">${sale.time}</td>
+          <td class="sales-item-cell">
             <div class="sales-item">
-              <img src="${item.image}" class="sales-item-img" alt="${item.name}">
+              <img src="${item.image}" class="sales-item-img" alt="${item.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23ddd%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3E?%3C/text%3E%3C/svg%3E'">
               <div class="sales-item-info">
-                <div class="sales-item-name">${item.name}</div>
-                <div class="sales-item-category">${item.category}</div>
-                <div class="sales-item-code">Kode: <strong>${item.code || '-'}</strong></div>
+                <div class="sales-item-name">${escapeHtml(item.name)}</div>
+                <div class="sales-item-category">${escapeHtml(item.category)}</div>
+                <div class="sales-item-code">Kode: <strong>${escapeHtml(item.code || '-')}</strong></div>
+                ${hasDiscount ? `<div class="sales-item-discount-info">Promo: ${item.qty} barang → Rp${formatRupiah(item.promoPriceRaw)}/item</div>` : ''}
+                ${hasRounding ? `<div class="sales-item-rounding-info">📝 Pembulatan ke bawah: -Rp${formatRupiah(item.roundingDifference)}/item</div>` : ''}
               </div>
             </div>
-          </td>
-          <td style="font-weight: bold; text-align: right;">
-            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
-            <small>(${sale.paymentType || '-'} ${sale.paymentDetails ? ` - ${sale.paymentDetails}` : ''})</small>
-          </td>
-          <td class="sales-actions">
-            <button class="btn-delete-sales" onclick="deleteSalesItem(${saleIndex}, '${item.name}', '${item.category}')">Hapus</button>
-          </td>
-        </tr>
+           </td>
+          <td class="original-price-cell">
+            <span class="price-value">Rp${formatRupiah(item.originalPrice)}</span>
+            <small class="per-item">/item</small>
+           </td>
+          <td class="promo-raw-price-cell ${hasDiscount ? 'has-discount' : 'no-discount'}">
+            ${hasDiscount ? 
+              `<span class="price-value promo-raw-price">Rp${formatRupiah(item.promoPriceRaw)}</span>
+               <small class="per-item">/item</small>
+               <span class="discount-badge">-${Math.round(((item.originalPrice - item.promoPriceRaw) / item.originalPrice) * 100)}%</span>` : 
+              '<span class="no-promo">-</span>'
+            }
+           </td>
+          <td class="rounded-price-cell">
+            ${hasRounding ? 
+              `<span class="price-value rounded-price">Rp${formatRupiah(item.roundedPrice)}</span>
+               <small class="per-item">/item (dibulatkan ke bawah)</small>
+               <small class="rounding-diff">(hemat Rp${formatRupiah(item.roundingDifference)}/item)</small>` : 
+              hasDiscount ?
+              `<span class="price-value rounded-price">Rp${formatRupiah(item.roundedPrice)}</span>
+               <small class="per-item">/item (tanpa pembulatan)</small>` :
+              `<span class="price-value">Rp${formatRupiah(item.roundedPrice)}</span>
+               <small class="per-item">/item</small>`
+            }
+           </td>
+          <td class="rounding-cell">
+            ${hasRounding ? 
+              `<span class="rounding-value">Rp${formatRupiah(roundingTotalForItem)}</span>
+               <small class="rounding-per-item">(Rp${formatRupiah(item.roundingDifference)} × ${item.qty})</small>` : 
+              '<span class="no-rounding">-</span>'
+            }
+           </td>
+          <td class="total-cell">
+            <div class="total-details">
+              <span class="qty-badge">${item.qty}x</span>
+              ${hasDiscount ? `<span class="original-total strikethrough">Rp${formatRupiah(originalTotalPerItem)}</span>` : ''}
+              <strong class="final-total">Rp${formatRupiah(totalPerItemRounded)}</strong>
+              ${hasRounding ? `<small class="rounding-info">(sisa pembulatan: -Rp${formatRupiah(roundingTotalForItem)})</small>` : ''}
+            </div>
+            <div class="payment-info">
+              <small>${sale.paymentType || '-'} ${sale.paymentDetails ? ` - ${escapeHtml(sale.paymentDetails)}` : ''}</small>
+            </div>
+           </td>
+          <td class="sales-actions-cell">
+            <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})" title="Hapus transaksi">
+              🗑️ Hapus
+            </button>
+           </td>
+         </tr>
       `;
     });
   });
 
-  html += `</tbody></table>`;
-  html += `<div class="sales-total">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
   html += `
-    <div class="sales-total" style="font-size:15px; margin-top:0;">
-      <span style="color:#27ae60;">Total Cash: Rp${formatRupiah(totalCash)}</span><br>
-      <span style="color:#2980b9;">Total Transfer: Rp${formatRupiah(totalTransfer)}</span>
+        </tbody>
+      </table>
     </div>
   `;
+  
+
+  html += `
+    <div class="sales-summary">
+      <div class="summary-card">
+        <h4>📊 Ringkasan Penjualan</h4>
+        <div class="summary-row total-after-promo">
+          <span>💰 Total Penjualan (harga promo asli):</span>
+          <span class="after-promo-amount">Rp${formatRupiah(grandTotalAfterPromo)}</span>
+        </div>
+        <div class="summary-row total-rounded">
+          <span>💵 Total Setelah Pembulatan (pemasukan aktual):</span>
+          <span class="rounded-amount">Rp${formatRupiah(grandTotalRounded)}</span>
+        </div>
+        <div class="summary-row rounding-saved">
+          <span>📝 Total Sisa Pembulatan:</span>
+          <span class="rounding-saved-amount">Rp${formatRupiah(grandRoundingSaved)}</span>
+        </div>
+        <div class="summary-row total-discount">
+          <span>🏷️ Total Diskon (termasuk pembulatan):</span>
+          <span class="discount-amount">Rp${formatRupiah(grandOriginalTotal - grandTotalRounded)}</span>
+        </div>
+      </div>
+      
+      <div class="summary-card">
+        <h4>💳 Metode Pembayaran</h4>
+        <div class="summary-row cash">
+          <span>Cash:</span>
+          <span>Rp${formatRupiah(totalCash)}</span>
+        </div>
+        <div class="summary-row transfer">
+          <span>Transfer:</span>
+          <span>Rp${formatRupiah(totalTransfer)}</span>
+        </div>
+        <div class="summary-row total-payment">
+          <span>Total Pendapatan (berdasarkan harga promo):</span>
+          <span>Rp${formatRupiah(totalCash + totalTransfer)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+  
+
   html += `
     <div class="sales-actions-bottom">
-      <button id="downloadExcelBtn" onclick="downloadExcel()">⬇️ Download Data</button>
-      <button id="deleteAllSalesBtn" onclick="deleteAllSalesRecords()">🗑️ Hapus Semua Data</button>
+      <button id="downloadExcelBtn" onclick="downloadExcel()" class="btn-download">
+        ⬇️ Download Data Excel
+      </button>
+      <button id="deleteAllSalesBtn" onclick="deleteAllSalesRecords()" class="btn-delete-all">
+        🗑️ Hapus Semua Data
+      </button>
     </div>
   `;
+  
   salesDiv.innerHTML = html;
+}
+
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 
@@ -2240,12 +2471,6 @@ async function downloadExcelWithCordova(wb) {
 }
 
 
-function s2ab(s) {
-  const buf = new ArrayBuffer(s.length);
-  const view = new Uint8Array(buf);
-  for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
-  return buf;
-}
 
 
 
@@ -2292,15 +2517,18 @@ function renderTopProducts() {
           category: item.category,
           code: item.code,
           totalQty: 0,
-          totalRevenue: 0
+          totalRevenue: 0,
+          originalRevenue: 0
         };
       }
       productSales[item.name].totalQty += item.qty;
-      productSales[item.name].totalRevenue += item.qty * item.price;
+      const priceUsed = item.roundedPrice || item.discountedPrice || item.price;
+      productSales[item.name].totalRevenue += priceUsed * item.qty;
+      productSales[item.name].originalRevenue += item.price * item.qty;
     });
   });
 
-  const sortedProducts = Object.values(productSales).sort((a, b) => b.totalQty - a.totalQty);
+  const sortedProducts = Object.values(productSales).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
   const container = document.getElementById('topProductsList');
   container.innerHTML = '';
@@ -2311,22 +2539,29 @@ function renderTopProducts() {
   }
 
   sortedProducts.forEach((product, index) => {
+    const hasDiscount = product.totalRevenue !== product.originalRevenue;
+    const discountAmount = product.originalRevenue - product.totalRevenue;
+    
     const item = document.createElement('div');
     item.className = 'top-product-item';
     item.innerHTML = `
       <div class="top-product-info">
-        <span>${index + 1}.</span>
+        <span class="rank-number">${index + 1}</span>
         <img src="${product.image}" class="top-product-img" alt="${product.name}">
         <div>
-          <div>${product.name}</div>
+          <div class="product-name">${product.name}</div>
           <small>${product.category} - <strong>${product.code || '-'}</strong></small>
+          ${hasDiscount ? `<small class="discount-info">Diskon: Rp${formatRupiah(discountAmount)}</small>` : ''}
         </div>
       </div>
       <div>
         <div class="total-qty-display">
           <span class="total-qty-badge">${product.totalQty}</span> terjual
         </div>
-        <div class="action-btn btn-soldout " style="color:white;">Rp${formatRupiah(product.totalRevenue)}</div>
+        <div class="revenue-display">
+          ${hasDiscount ? `<span class="strikethrough">Rp${formatRupiah(product.originalRevenue)}</span><br>` : ''}
+          <strong class="revenue-amount">Rp${formatRupiah(product.totalRevenue)}</strong>
+        </div>
       </div>
     `;
     container.appendChild(item);
@@ -2387,93 +2622,6 @@ function exportWithWeb(dataStr, fileName) {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   }, 100);
-}
-
-
-async function exportData() {
-  try {
-    const allData = {
-      products: await loadFromIndexedDB(STORE_NAMES.PRODUCTS),
-      cart: await loadFromIndexedDB(STORE_NAMES.CART),
-      sales: await loadFromIndexedDB(STORE_NAMES.SALES),
-      categories: await loadFromIndexedDB(STORE_NAMES.CATEGORIES),
-      preorders: await loadFromIndexedDB(STORE_NAMES.PREORDERS),
-      paymentMethods: await loadFromIndexedDB(STORE_NAMES.PAYMENT_METHODS),
-      transferMethods: await loadFromIndexedDB(STORE_NAMES.TRANSFER_METHODS),
-      artists: await loadFromIndexedDB(STORE_NAMES.ARTISTS),
-      timestamp: new Date().toISOString()
-    };
-
-    const dataStr = JSON.stringify(allData, null, 2);
-    const fileName = `backup_penjualan_${new Date().toISOString().slice(0,10)}.json`;
-
-    
-    if (window.cordova && cordova.platformId !== 'browser') {
-      
-      await exportWithCordova(dataStr, fileName);
-    } else {
-      
-      exportWithWeb(dataStr, fileName);
-    }
-
-  } catch (error) {
-    console.error('Gagal export data:', error);
-    showNotification('Gagal export data! ' + error.message);
-  }
-}
-
-
-async function exportWithCordova(dataStr, fileName) {
-  return new Promise((resolve, reject) => {
-    
-    window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory || 
-                                   cordova.file.externalRootDirectory, 
-    function(directoryEntry) {
-      directoryEntry.getFile(fileName, { create: true, exclusive: false }, 
-      function(fileEntry) {
-        fileEntry.createWriter(function(fileWriter) {
-          fileWriter.onwriteend = function() {
-            console.log('File berhasil disimpan: ' + fileEntry.toURL());
-            
-            
-            const fileLocation = cordova.file.externalDataDirectory ? 
-                               'Penyimpanan Internal/Android/data/' : 
-                               'Penyimpanan External/';
-                               
-            showNotification(`Data berhasil di-export ke: ${fileLocation}${fileName}`);
-            
-            
-            if (cordova.plugins.fileOpener2) {
-              cordova.plugins.fileOpener2.open(
-                fileEntry.toURL(),
-                'application/json',
-                {
-                  error: function(e) {
-                    console.log('Error opening file: ' + JSON.stringify(e));
-                    resolve();
-                  },
-                  success: function() {
-                    console.log('File opened successfully');
-                    resolve();
-                  }
-                }
-              );
-            } else {
-              resolve();
-            }
-          };
-
-          fileWriter.onerror = function(e) {
-            console.log('Write failed: ' + e.toString());
-            reject(new Error('Gagal menulis file: ' + e.toString()));
-          };
-
-          const blob = new Blob([dataStr], { type: 'application/json' });
-          fileWriter.write(blob);
-        }, reject);
-      }, reject);
-    }, reject);
-  });
 }
 
 
@@ -2696,7 +2844,7 @@ async function syncArtistsFromProducts() {
     }
 }
 
-// Fungsi import yang kompatibel dengan Cordova
+
 function showImportDialog() {
   if (window.cordova && cordova.platformId !== 'browser') {
     showCordovaImportOptions();
@@ -2705,76 +2853,16 @@ function showImportDialog() {
   }
 }
 
-function showCordovaImportOptions() {
-  const importModal = document.createElement('div');
-  importModal.className = 'modal-overlay';
-  importModal.style.display = 'flex';
-  importModal.innerHTML = `
-    <div class="modal-content">
-      <h3>Import Data</h3>
-      <p>Pilih metode import:</p>
-      <button onclick="importFromFilePicker()" class="btn-primary">Pilih File dari Perangkat</button>
-      <button onclick="importFromWebMethod()" class="btn-secondary">Gunakan Input File Web</button>
-      <button onclick="this.parentElement.parentElement.remove()" class="btn-cancel">Batal</button>
-    </div>
-  `;
-  document.body.appendChild(importModal);
-}
 
-function importFromFilePicker() {
-  if (window.cordova && cordova.plugins.filePicker) {
-    cordova.plugins.filePicker.pickFile(
-      function(uri) {
-        readCordovaFile(uri);
-      },
-      function(error) {
-        console.log('Error picking file:', error);
-        showNotification('Gagal memilih file');
-        // Fallback ke metode web
-        document.getElementById('importFile').click();
-      },
-      { mimeType: 'application/json' }
-    );
-  } else {
-    showNotification('File picker tidak tersedia, gunakan metode web');
-    document.getElementById('importFile').click();
-  }
-}
+
+
 
 function importFromWebMethod() {
   document.querySelector('.modal-overlay')?.remove();
   document.getElementById('importFile').click();
 }
 
-async function readCordovaFile(uri) {
-  try {
-    window.resolveLocalFileSystemURL(uri, function(fileEntry) {
-      fileEntry.file(function(file) {
-        const reader = new FileReader();
-        reader.onloadend = function(e) {
-          try {
-            const importedData = JSON.parse(this.result);
-            processImportedData(importedData);
-            document.querySelector('.modal-overlay')?.remove();
-            showNotification('Data berhasil diimport!');
-          } catch (error) {
-            showNotification('Format file tidak valid');
-          }
-        };
-        reader.onerror = function() {
-          showNotification('Gagal membaca file');
-        };
-        reader.readAsText(file);
-      }, function(error) {
-        showNotification('Gagal membaca file: ' + error.message);
-      });
-    }, function(error) {
-      showNotification('Gagal mengakses file: ' + error.message);
-    });
-  } catch (error) {
-    showNotification('Error: ' + error.message);
-  }
-}
+
 
 
 function showCordovaImportOptions() {
@@ -2802,7 +2890,6 @@ function importFromFilePicker() {
       function(error) {
         console.log('Error picking file:', error);
         showNotification('Gagal memilih file');
-        // Fallback ke metode web
         document.getElementById('importFile').click();
       },
       { mimeType: 'application/json' }
@@ -2862,6 +2949,8 @@ async function resetAllData() {
       
       paymentMethods = ['Cash', 'Transfer'];
       transferMethods = ['Bank BCA', 'Bank Mandiri', 'OVO', 'GoPay'];
+      promoRules = [];
+        await saveToIndexedDB('promoRules', promoRules);
 
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PRODUCTS, data),
@@ -3281,16 +3370,19 @@ async function completePreOrder(index) {
       po.status = 'Completed';
       po.completionDate = new Date().toLocaleString('id-ID');
 
-      sales.push({
-        time: po.completionDate,
-        items: JSON.parse(JSON.stringify(po.items)),
-        total: po.totalPrice,
-        amountPaid: po.totalPrice,
+    sales.push({
+        time: now,
+        items: saleItems,
+        originalTotal: originalTotal,
+        totalAfterPromo: totalAfterPromo, 
+        total: grandTotalRounded,         
+        totalRoundingSaved: totalRoundingSaved,
+        amountPaid: grandTotalRounded,
         change: 0,
-        paymentType: po.payment.method,
-        isPreOrder: true,
-        preOrderId: po.id
-      });
+        paymentType: paymentType,
+        paymentDetails: paymentDetails,
+        promoApplied: totalAfterPromo < originalTotal
+    });
 
       await Promise.all([
         saveToIndexedDB(STORE_NAMES.PREORDERS, preOrders),
@@ -3699,26 +3791,64 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 async function increaseCartItem(index) {
-  const itemInCart = cart[index];
-  let originalProduct = null;
-  for (const category in data) {
-    if (data.hasOwnProperty(category)) {
-      originalProduct = data[category].find(p => p.name === itemInCart.name);
-      if (originalProduct) break;
+    const itemInCart = cart[index];
+    let originalProduct = null;
+    for (const category in data) {
+        if (data.hasOwnProperty(category)) {
+            originalProduct = data[category].find(p => p.name === itemInCart.name);
+            if (originalProduct) break;
+        }
     }
-  }
 
-  if (originalProduct && itemInCart.qty < originalProduct.stock) {
-    itemInCart.qty += 1;
-    await saveToIndexedDB(STORE_NAMES.CART, cart);
-    renderCartModalContent();
-    updateCartBadge();
-    renderProducts(); 
-  } else if (originalProduct && itemInCart.qty >= originalProduct.stock) {
-    showNotification(`Stok ${itemInCart.name} tidak cukup! Hanya tersedia ${originalProduct.stock} item.`);
-  } else {
-    showNotification(`Produk ${itemInCart.name} tidak ditemukan di inventaris.`);
-  }
+    if (originalProduct && itemInCart.qty < originalProduct.stock) {
+        itemInCart.qty += 1;
+        await saveToIndexedDB(STORE_NAMES.CART, cart);
+        
+
+        if (isCartModalOpen) {
+            renderCartModalContent();
+        }
+        updateCartBadge();
+        renderProducts();
+        
+
+        const totalQtyInCategory = cart
+            .filter(item => item.category === originalProduct.category)
+            .reduce((sum, item) => sum + item.qty, 0);
+        const promoInfo = getPromoInfoForCategory(originalProduct.category, totalQtyInCategory);
+        
+        if (promoInfo && promoInfo.promoQty > 0) {
+
+            const normalPrice = originalProduct.price;
+            const bundleQty = promoInfo.promoQty;
+            const bundlePrice = promoInfo.promoPrice;
+            const pricePerItemAfterPromo = promoInfo.pricePerItem;
+            const bundleCount = Math.floor(totalQtyInCategory / bundleQty);
+            const remainingQty = totalQtyInCategory % bundleQty;
+            
+            let notifMessage = `🎉 Promo Bundle! ${bundleQty} barang = Rp${formatRupiah(bundlePrice)}`;
+            if (bundleCount > 1) {
+                notifMessage += ` (${bundleCount}x bundle)`;
+            }
+            notifMessage += `\n💰 Rata-rata: Rp${formatRupiah(pricePerItemAfterPromo)}/item`;
+            
+            if (remainingQty > 0) {
+                notifMessage += `\n⚠️ ${remainingQty} barang harga normal: Rp${formatRupiah(normalPrice)}/item`;
+            }
+            
+            const totalPrice = (bundleCount * bundlePrice) + (remainingQty * normalPrice);
+            notifMessage += `\n💵 Total: Rp${formatRupiah(totalPrice)} untuk ${totalQtyInCategory} barang`;
+            
+            showNotification(notifMessage);
+        } else if (totalQtyInCategory > 0) {
+
+            showNotification(`➕ ${itemInCart.name} | Total: ${totalQtyInCategory}x = Rp${formatRupiah(originalProduct.price * totalQtyInCategory)}`);
+        }
+    } else if (originalProduct && itemInCart.qty >= originalProduct.stock) {
+        showNotification(`⚠️ Stok ${itemInCart.name} tidak cukup! Hanya tersedia ${originalProduct.stock} item.`);
+    } else {
+        showNotification(`❌ Produk ${itemInCart.name} tidak ditemukan di inventaris.`);
+    }
 }
 
 function filterSalesByDate() {
@@ -3760,97 +3890,7 @@ function resetSalesDateFilter() {
   renderSalesTable();
 } 
 
-function renderSortedSalesTable(sortedSales = sales) {
-  const salesDiv = document.getElementById('salesData');
 
-  if (sortedSales.length === 0) {
-    salesDiv.innerHTML = '<div class="empty-state">Belum ada data penjualan</div>';
-    return;
-  }
-
-  let html = `
-    <table>
-      <thead>
-        <tr>
-          <th >Waktu </th>
-          <th >Barang </th>
-          <th >Total Item </th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  let grandTotal = 0;
-  let totalCash = 0;
-  let totalTransfer = 0;
-
-  sortedSales.forEach((sale, saleIndex) => {
-    grandTotal += sale.total;
-    if (sale.paymentType && sale.paymentType.toLowerCase() === 'cash') {
-      totalCash += sale.total;
-    } else if (sale.paymentType && sale.paymentType.toLowerCase() !== 'cash') {
-      totalTransfer += sale.total;
-    }
-
-    const itemsByProduct = {};
-    sale.items.forEach(item => {
-      const key = `${item.name}-${item.category}`;
-      if (!itemsByProduct[key]) {
-        itemsByProduct[key] = {
-          name: item.name,
-          category: item.category,
-          image: item.image,
-          qty: 0,
-          price: item.price,
-          code: item.code
-        };
-      }
-      itemsByProduct[key].qty += item.qty;
-    });
-
-    Object.values(itemsByProduct).forEach(item => {
-      html += `
-        <tr class="sales-item-row">
-          <td>${sale.time}</td>
-          <td>
-            <div class="sales-item">
-              <img src="${item.image}" class="sales-item-img" alt="${item.name}">
-              <div class="sales-item-info">
-                <div class="sales-item-name">${item.name}</div>
-                <div class="sales-item-category">${item.category}</div>
-                <div class="sales-item-code">Kode: <strong>${item.code || '-'}</strong></div>
-              </div>
-            </div>
-          </td>
-          <td style="font-weight: bold; text-align: right;">
-            <span class="sales-item-qty">${item.qty}x</span> Rp${formatRupiah(item.price * item.qty)}<br>
-            <small>(${sale.paymentType || '-'} ${sale.paymentDetails ? ` - ${sale.paymentDetails}` : ''})</small>
-          </td>
-          <td class="sales-actions">
-            <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})">Hapus</button>
-          </td>
-        </tr>
-      `;
-    });
-  });
-
-  html += `</tbody></table>`;
-  html += `<div class="sales-total">Total Penjualan: Rp${formatRupiah(grandTotal)}</div>`;
-  html += `
-    <div class="sales-total" style="font-size:15px; margin-top:0;">
-      <span style="color:#27ae60;">Total Cash: Rp${formatRupiah(totalCash)}</span><br>
-      <span style="color:#2980b9;">Total Transfer: Rp${formatRupiah(totalTransfer)}</span>
-    </div>
-  `;
-  html += `
-    <div class="sales-actions-bottom">
-      <button id="downloadExcelBtn" onclick="downloadExcel()">⬇️ Download Data</button>
-      <button id="deleteAllSalesBtn" onclick="deleteAllSalesRecords()">🗑️ Hapus Semua Data</button>
-    </div>
-  `;
-  salesDiv.innerHTML = html;
-}
 
 function naturalCompare(a, b) {
 
@@ -4165,33 +4205,36 @@ function renderArtistSalesTable(selectedArtist = '') {
     return;
   }
   
-  
   const artistStats = {};
   
   sales.forEach(sale => {
     sale.items.forEach(item => {
       const artistName = item.artist || 'Tanpa Artist';
-      const itemTotal = item.price * item.qty;
+      const priceUsed = item.roundedPrice || item.discountedPrice || item.price;
+      const itemTotal = priceUsed * item.qty;
+      const originalTotal = item.price * item.qty;
       
       if (!artistStats[artistName]) {
         artistStats[artistName] = {
           totalSales: 0,
+          originalSales: 0,
+          totalDiscount: 0,
           totalItems: 0,
           transactionCount: new Set()
         };
       }
       
       artistStats[artistName].totalSales += itemTotal;
+      artistStats[artistName].originalSales += originalTotal;
+      artistStats[artistName].totalDiscount += (originalTotal - itemTotal);
       artistStats[artistName].totalItems += item.qty;
       artistStats[artistName].transactionCount.add(sale.time);
     });
   });
   
-  
   Object.keys(artistStats).forEach(artistName => {
     artistStats[artistName].transactionCount = artistStats[artistName].transactionCount.size;
   });
-  
   
   let displayStats = artistStats;
   if (selectedArtist && selectedArtist !== '') {
@@ -4201,9 +4244,6 @@ function renderArtistSalesTable(selectedArtist = '') {
     }
   }
   
-  
-  artistSalesData.scrollTop = 0;
-
   const sortedArtists = Object.entries(displayStats)
     .map(([artistName, stats]) => ({
       artistName,
@@ -4219,16 +4259,16 @@ function renderArtistSalesTable(selectedArtist = '') {
   
   let html = `
     <div class="artist-ranking-header">
-      <h4>Peringkat Artist Berdasarkan Pendapatan</h4>
+      <h4>Peringkat Artist Berdasarkan Pendapatan (Setelah Promo)</h4>
     </div>
     <div class="artist-ranking-list">
   `;
-  
   
   sortedArtists.forEach((artist, index) => {
     const rankClass = index === 0 ? 'rank-first' : 
                      index === 1 ? 'rank-second' : 
                      index === 2 ? 'rank-third' : 'rank-other';
+    const hasDiscount = artist.totalDiscount > 0;
     
     html += `
       <div class="artist-rank-item ${rankClass}">
@@ -4237,7 +4277,9 @@ function renderArtistSalesTable(selectedArtist = '') {
           <div class="artist-rank-details">
             <div class="artist-rank-name">${artist.artistName}</div>
             <div class="artist-rank-stats">
-              <span class="stat-item">💰 Rp${formatRupiah(artist.totalSales)}</span>
+              ${hasDiscount ? `<span class="stat-item strikethrough">Rp${formatRupiah(artist.originalSales)}</span>` : ''}
+              <span class="stat-item highlight">💰 Rp${formatRupiah(artist.totalSales)}</span>
+              ${hasDiscount ? `<span class="stat-item discount">📉 Diskon: Rp${formatRupiah(artist.totalDiscount)}</span>` : ''}
               <span class="stat-item">📦 ${artist.totalItems} item</span>
               <span class="stat-item">🛒 ${artist.transactionCount} transaksi</span>
             </div>
@@ -4252,7 +4294,6 @@ function renderArtistSalesTable(selectedArtist = '') {
   
   html += `</div>`;
   
-  
   html += `
     <div class="artist-sales-details">
       <h4>Detail Penjualan per Artist</h4>
@@ -4261,9 +4302,11 @@ function renderArtistSalesTable(selectedArtist = '') {
           <thead>
             <tr>
               <th>Artist</th>
-              <th>Total Pendapatan</th>
+              <th>Original</th>
+              <th>Setelah Promo</th>
+              <th>Diskon</th>
               <th>Barang Terjual</th>
-              <th>Jumlah Transaksi</th>
+              <th>Transaksi</th>
             </tr>
           </thead>
           <tbody>
@@ -4272,10 +4315,10 @@ function renderArtistSalesTable(selectedArtist = '') {
   sortedArtists.forEach(artist => {
     html += `
       <tr>
-        <td>
-          <span class="artist-badge">${artist.artistName}</span>
-        </td>
-        <td>Rp${formatRupiah(artist.totalSales)}</td>
+        <td><span class="artist-badge">${artist.artistName}</span></td>
+        <td class="original-cell">Rp${formatRupiah(artist.originalSales)}</td>
+        <td class="final-cell"><strong>Rp${formatRupiah(artist.totalSales)}</strong></td>
+        <td class="discount-cell">${artist.totalDiscount > 0 ? `-Rp${formatRupiah(artist.totalDiscount)}` : '-'}</td>
         <td>${artist.totalItems} item</td>
         <td>${artist.transactionCount}</td>
       </tr>
@@ -4597,62 +4640,7 @@ function downloadArtistExcel() {
 }
 
 
-async function downloadArtistExcelWithCordova(wb, fileName) {
-  try {
-    
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
-    
-    
-    const blob = new Blob([s2ab(excelBuffer)], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    });
 
-    
-    window.resolveLocalFileSystemURL(cordova.file.externalDataDirectory || 
-                                   cordova.file.externalRootDirectory, 
-    function(directoryEntry) {
-      directoryEntry.getFile(fileName, { create: true, exclusive: false }, 
-      function(fileEntry) {
-        fileEntry.createWriter(function(fileWriter) {
-          fileWriter.onwriteend = function() {
-            showNotification(`File Excel berhasil disimpan: ${fileName}`);
-            
-            
-            if (cordova.plugins.fileOpener2) {
-              cordova.plugins.fileOpener2.open(
-                fileEntry.toURL(),
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                {
-                  error: function(e) {
-                    console.log('Error opening Excel file: ' + JSON.stringify(e));
-                  },
-                  success: function() {
-                    console.log('Excel file opened successfully');
-                  }
-                }
-              );
-            }
-          };
-
-          fileWriter.onerror = function(e) {
-            console.log('Write failed: ' + e.toString());
-            showNotification('Gagal menyimpan file Excel!');
-          };
-
-          fileWriter.write(blob);
-        });
-      }, function(error) {
-        showNotification('Gagal membuat file: ' + error.message);
-      });
-    }, function(error) {
-      showNotification('Gagal mengakses penyimpanan: ' + error.message);
-    });
-
-  } catch (error) {
-    console.error("Gagal menyimpan Excel dengan Cordova:", error);
-    showNotification("Gagal menyimpan file Excel!");
-  }
-}
 
 
 function s2ab(s) {
@@ -4663,38 +4651,8 @@ function s2ab(s) {
 }
 
 
-// Fungsi untuk request permission storage di Android
-async function requestStoragePermission() {
-  return new Promise((resolve, reject) => {
-    if (window.cordova && cordova.platformId === 'android') {
-      if (cordova.plugins && cordova.plugins.permissions) {
-        cordova.plugins.permissions.requestPermission(
-          cordova.plugins.permissions.WRITE_EXTERNAL_STORAGE,
-          function(status) {
-            if (status.hasPermission) {
-              resolve(true);
-            } else {
-              showNotification('Izin penyimpanan ditolak. Export file mungkin tidak berfungsi.');
-              resolve(false);
-            }
-          },
-          function(error) {
-            console.error('Error requesting permission:', error);
-            resolve(false); // Tetap lanjut meski error
-          }
-        );
-      } else {
-        // Plugin permission tidak tersedia, assume granted
-        resolve(true);
-      }
-    } else {
-      // Bukan Android, tidak perlu permission
-      resolve(true);
-    }
-  });
-}
 
-// Fungsi download Excel yang kompatibel dengan Cordova
+
 async function downloadExcel() {
   try {
     if (sales.length === 0) {
@@ -4702,7 +4660,6 @@ async function downloadExcel() {
       return;
     }
 
-    // Cek platform
     if (window.cordova && cordova.platformId !== 'browser') {
       await downloadExcelCordova();
     } else {
@@ -4714,7 +4671,7 @@ async function downloadExcel() {
   }
 }
 
-// Download Excel untuk Web
+
 async function downloadExcelWeb() {
   const reportDate = new Date().toLocaleString('id-ID', {
     year: 'numeric',
@@ -4776,11 +4733,11 @@ async function downloadExcelWeb() {
   showNotification("Data penjualan berhasil diunduh!");
 }
 
-// Download Excel untuk Cordova/Android
+
 async function downloadExcelCordova() {
   return new Promise(async (resolve, reject) => {
     try {
-      // Request storage permission untuk Android
+
       if (window.cordova && cordova.platformId === 'android') {
         const hasPermission = await requestStoragePermission();
         if (!hasPermission) {
@@ -4845,10 +4802,10 @@ async function downloadExcelCordova() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
 
-      // Konversi ke binary string
+
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
       
-      // Simpan file menggunakan Cordova File API
+
       const fileName = `Data_Penjualan_${new Date().toISOString().slice(0,10)}.xlsx`;
       
       window.resolveLocalFileSystemURL(cordova.file.externalDirectory || 
@@ -4860,7 +4817,7 @@ async function downloadExcelCordova() {
             fileWriter.onwriteend = function() {
               showNotification(`File Excel berhasil disimpan di: ${fileEntry.nativeURL}`);
               
-              // Buka file dengan aplikasi yang sesuai
+
               if (cordova.plugins.fileOpener2) {
                 cordova.plugins.fileOpener2.open(
                   fileEntry.toURL(),
@@ -4884,7 +4841,7 @@ async function downloadExcelCordova() {
               reject(e);
             };
 
-            // Konversi binary string ke ArrayBuffer
+
             const buffer = new ArrayBuffer(wbout.length);
             const view = new Uint8Array(buffer);
             for (let i = 0; i < wbout.length; i++) {
@@ -4907,22 +4864,8 @@ async function downloadExcelCordova() {
   });
 }
 
-// Fungsi serupa untuk downloadArtistExcel
-async function downloadArtistExcel() {
-  try {
-    if (window.cordova && cordova.platformId !== 'browser') {
-      await downloadArtistExcelCordova();
-    } else {
-      await downloadArtistExcelWeb();
-    }
-  } catch (error) {
-    console.error("Gagal mengunduh data artist Excel:", error);
-    showNotification("Gagal mengunduh data artist Excel! " + error.message);
-  }
-}
 
-// Implementasi downloadArtistExcelCordova mirip dengan downloadExcelCordova
-// ... (kode serupa untuk artist Excel)
+
 
 function populateArtistSalesFilter() {
   const artistFilter = document.getElementById('artistSalesFilter');
@@ -5035,3 +4978,383 @@ async function exportData() {
         showNotification('Gagal export data! ' + error.message);
     }
 }
+
+function openPromoRulesModal() {
+  document.getElementById('promoRulesModal').style.display = 'flex';
+  document.body.classList.add('modal-open');
+  renderPromoRulesList();
+  renderCategoryCheckboxesForPromo();
+}
+
+function closePromoRulesModal() {
+  document.getElementById('promoRulesModal').style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
+function renderCategoryCheckboxesForPromo() {
+  const container = document.getElementById('promoCategoryList');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  categories.forEach(category => {
+    const label = document.createElement('label');
+    label.className = 'promo-category-checkbox';
+    label.innerHTML = `
+      <input type="checkbox" value="${category}" class="promo-category-item">
+      <span>${capitalizeFirstLetter(category)}</span>
+    `;
+    container.appendChild(label);
+  });
+}
+
+
+function renderPromoRulesList() {
+  const container = document.getElementById('promoRulesList');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (promoRules.length === 0) {
+    container.innerHTML = '<div class="empty-state">Belum ada aturan promo. Tambahkan aturan baru.</div>';
+    return;
+  }
+  
+  promoRules.forEach((rule, ruleIndex) => {
+    const ruleCard = document.createElement('div');
+    ruleCard.className = 'promo-rule-card';
+    
+    let rulesHtml = '';
+    rule.rules.forEach((subRule, subIndex) => {
+      rulesHtml += `
+        <div class="promo-subrule-item">
+          <span class="promo-qty">${subRule.qty} barang</span>
+          <span class="promo-arrow">→</span>
+          <span class="promo-price">Rp${formatRupiah(subRule.price)}</span>
+          <button class="btn-remove-subrule" onclick="removePromoSubRule(${ruleIndex}, ${subIndex})">✖</button>
+        </div>
+      `;
+    });
+    
+    ruleCard.innerHTML = `
+      <div class="promo-rule-header">
+        <h4>Kategori: ${capitalizeFirstLetter(rule.category)}</h4>
+        <button class="btn-delete-rule" onclick="deletePromoRule(${ruleIndex})">🗑️ Hapus</button>
+      </div>
+      <div class="promo-subrules-container">
+        ${rulesHtml}
+      </div>
+      <div class="promo-add-subrule">
+        <input type="number" id="newSubQty-${ruleIndex}" placeholder="Jumlah barang" min="1">
+        <input type="text" id="newSubPrice-${ruleIndex}" placeholder="Harga promo" oninput="formatRupiahInput(this)">
+        <button onclick="addPromoSubRule(${ruleIndex})">+ Tambah</button>
+      </div>
+    `;
+    container.appendChild(ruleCard);
+  });
+}
+
+
+async function addNewPromoRule() {
+  const selectedCategories = Array.from(document.querySelectorAll('#promoCategoryList input:checked'))
+    .map(cb => cb.value);
+  
+  if (selectedCategories.length === 0) {
+    showNotification('Pilih minimal satu kategori untuk promo ini!');
+    return;
+  }
+  
+  const promoQty = parseInt(document.getElementById('newPromoQty').value);
+  const promoPriceRaw = document.getElementById('newPromoPrice').value.replace(/\./g, '');
+  const promoPrice = parseInt(promoPriceRaw);
+  
+  if (isNaN(promoQty) || promoQty <= 0) {
+    showNotification('Jumlah barang harus diisi dengan benar!');
+    return;
+  }
+  if (isNaN(promoPrice) || promoPrice <= 0) {
+    showNotification('Harga promo harus diisi dengan benar!');
+    return;
+  }
+  
+  for (const category of selectedCategories) {
+    let existingRule = promoRules.find(r => r.category === category);
+    
+    if (existingRule) {
+
+      const existingSubRule = existingRule.rules.find(r => r.qty === promoQty);
+      if (existingSubRule) {
+        showNotification(`Kategori ${category} sudah memiliki aturan untuk ${promoQty} barang!`);
+        continue;
+      }
+      existingRule.rules.push({ qty: promoQty, price: promoPrice });
+      existingRule.rules.sort((a, b) => a.qty - b.qty);
+    } else {
+      promoRules.push({
+        category: category,
+        rules: [{ qty: promoQty, price: promoPrice }]
+      });
+    }
+  }
+  
+  await saveToIndexedDB('promoRules', promoRules);
+
+  document.getElementById('newPromoQty').value = '';
+  document.getElementById('newPromoPrice').value = '';
+  document.querySelectorAll('#promoCategoryList input:checked').forEach(cb => cb.checked = false);
+  
+  renderPromoRulesList();
+  showNotification('Aturan promo berhasil ditambahkan!');
+}
+
+
+async function addPromoSubRule(ruleIndex) {
+  const promoQty = parseInt(document.getElementById(`newSubQty-${ruleIndex}`).value);
+  const promoPriceRaw = document.getElementById(`newSubPrice-${ruleIndex}`).value.replace(/\./g, '');
+  const promoPrice = parseInt(promoPriceRaw);
+  
+  if (isNaN(promoQty) || promoQty <= 0) {
+    showNotification('Jumlah barang harus diisi dengan benar!');
+    return;
+  }
+  if (isNaN(promoPrice) || promoPrice <= 0) {
+    showNotification('Harga promo harus diisi dengan benar!');
+    return;
+  }
+  
+  const existingSubRule = promoRules[ruleIndex].rules.find(r => r.qty === promoQty);
+  if (existingSubRule) {
+    showNotification(`Aturan untuk ${promoQty} barang sudah ada!`);
+    return;
+  }
+  
+  promoRules[ruleIndex].rules.push({ qty: promoQty, price: promoPrice });
+  promoRules[ruleIndex].rules.sort((a, b) => a.qty - b.qty);
+  
+  await saveToIndexedDB('promoRules', promoRules);
+  
+  document.getElementById(`newSubQty-${ruleIndex}`).value = '';
+  document.getElementById(`newSubPrice-${ruleIndex}`).value = '';
+  
+  renderPromoRulesList();
+  showNotification('Aturan promo berhasil ditambahkan!');
+}
+
+async function removePromoSubRule(ruleIndex, subRuleIndex) {
+  if (!confirm('Hapus aturan promo ini?')) return;
+  
+  promoRules[ruleIndex].rules.splice(subRuleIndex, 1);
+  
+  if (promoRules[ruleIndex].rules.length === 0) {
+    promoRules.splice(ruleIndex, 1);
+  }
+  
+  await saveToIndexedDB('promoRules', promoRules);
+  renderPromoRulesList();
+  showNotification('Aturan promo dihapus!');
+}
+
+
+async function deletePromoRule(ruleIndex) {
+  if (!confirm(`Hapus semua aturan promo untuk kategori "${promoRules[ruleIndex].category}"?`)) return;
+  
+  promoRules.splice(ruleIndex, 1);
+  await saveToIndexedDB('promoRules', promoRules);
+  renderPromoRulesList();
+  showNotification('Aturan promo dihapus!');
+}
+
+function recalculateCartPrices() {
+    const updatedCart = cart.map(item => ({ ...item }));
+    const itemsByCategory = {};
+    
+
+    updatedCart.forEach(item => {
+        if (!itemsByCategory[item.category]) itemsByCategory[item.category] = [];
+        itemsByCategory[item.category].push(item);
+    });
+    
+
+    for (const [category, items] of Object.entries(itemsByCategory)) {
+        const promoRule = promoRules.find(rule => rule.category === category);
+        
+        if (promoRule && promoRule.rules && promoRule.rules.length > 0) {
+
+            const sortedRules = [...promoRule.rules].sort((a, b) => b.qty - a.qty);
+            
+
+            let totalQty = items.reduce((sum, item) => sum + item.qty, 0);
+            let remainingQty = totalQty;
+            let totalPromoPrice = 0;
+            let usedRules = [];
+            let normalPrice = items[0].price;
+            
+
+            for (const rule of sortedRules) {
+                if (remainingQty >= rule.qty) {
+                    const bundleCount = Math.floor(remainingQty / rule.qty);
+                    const bundleTotal = bundleCount * rule.price;
+                    totalPromoPrice += bundleTotal;
+                    remainingQty = remainingQty % rule.qty;
+                    usedRules.push({ rule, bundleCount, bundleTotal });
+                }
+            }
+            
+
+            if (remainingQty > 0) {
+                totalPromoPrice += remainingQty * normalPrice;
+            }
+            
+
+            if (totalQty > 0 && totalPromoPrice > 0) {
+                items.forEach(item => {
+                    const itemQty = item.qty;
+                    const itemProportion = itemQty / totalQty;
+                    const itemTotalPrice = totalPromoPrice * itemProportion;
+                    const pricePerItem = itemTotalPrice / itemQty;
+                    
+
+                    item.discountedPrice = pricePerItem;
+                    item.displayPrice = pricePerItem;  
+                    item.originalPrice = item.price;
+                    item.discountApplied = item.price - pricePerItem;
+                    item.promoPriceRaw = pricePerItem;  
+                    item.roundedPrice = null;  
+                    item.roundingDifference = 0;
+                    item.roundingTotal = 0;
+                    item.totalPriceForItem = itemTotalPrice;
+                    
+
+                    if (usedRules.length > 0) {
+                        const bestRule = usedRules[0].rule;
+                        item.promoBundleQty = bestRule.qty;
+                        item.promoBundlePrice = bestRule.price;
+                    } else {
+                        item.promoBundleQty = null;
+                        item.promoBundlePrice = null;
+                    }
+                });
+            } else {
+                items.forEach(item => {
+                    setNormalPrice(item);
+                });
+            }
+        } else {
+            items.forEach(item => {
+                setNormalPrice(item);
+            });
+        }
+    }
+    
+    return updatedCart;
+}
+
+function setNormalPrice(item) {
+    item.originalPrice = item.price;
+    item.discountedPrice = item.price;
+    item.displayPrice = item.price;
+    item.discountApplied = 0;
+    item.promoPriceRaw = item.price;
+    item.roundedPrice = null;
+    item.roundingDifference = 0;
+    item.roundingTotal = 0;
+    item.totalPriceForItem = item.price * item.qty;
+    item.promoBundleQty = null;
+    item.promoBundlePrice = null;
+}
+
+function setNormalPrice(item) {
+    item.originalPrice = item.price;
+    item.promoPriceRaw = item.price;
+    item.displayPrice = item.price;
+    item.discountApplied = 0;
+    item.roundedPrice = item.price;
+    item.roundingDifference = 0;
+    item.roundingTotal = 0;
+    item.totalPriceForItem = item.price * item.qty;
+    item.promoBundleQty = null;
+    item.promoBundlePrice = null;
+}
+
+function calculateCartTotalWithPromo() {
+    const cartWithPromo = recalculateCartPrices();
+    const total = cartWithPromo.reduce((sum, item) => sum + (item.totalPriceForItem || (item.displayPrice * item.qty)), 0);
+    const originalTotal = cartWithPromo.reduce((sum, item) => sum + (item.originalPrice * item.qty), 0);
+    const totalDiscount = originalTotal - total;
+    
+    return {
+        total: total,
+        originalTotal: originalTotal,
+        totalDiscount: totalDiscount,
+        roundingTotal: 0,  
+        items: cartWithPromo
+    };
+}
+
+function getPromoInfoForCategory(category, totalQty) {
+    const promoRule = promoRules.find(rule => rule.category === category);
+    if (!promoRule || !promoRule.rules || promoRule.rules.length === 0) {
+        return null;
+    }
+    
+
+    const sortedRules = [...promoRule.rules].sort((a, b) => b.qty - a.qty);
+    
+
+    let normalPrice = 0;
+    for (const cat in data) {
+        if (cat === category && data[cat].length > 0) {
+            normalPrice = data[cat][0].price;
+            break;
+        }
+    }
+    
+    let remainingQty = totalQty;
+    let totalPromoPrice = 0;
+    let bestPromoQty = 0;
+    let bestPromoPrice = 0;
+    let bundleCount_total = 0;
+    
+
+    for (const rule of sortedRules) {
+        if (remainingQty >= rule.qty) {
+            const bundleCount = Math.floor(remainingQty / rule.qty);
+            totalPromoPrice += bundleCount * rule.price;
+            remainingQty = remainingQty % rule.qty;
+            bestPromoQty = rule.qty;
+            bestPromoPrice = rule.price;
+            bundleCount_total = bundleCount;
+        }
+    }
+    
+ 
+    if (remainingQty > 0) {
+        totalPromoPrice += remainingQty * normalPrice;
+    }
+    
+    if (totalQty > 0 && totalPromoPrice > 0) {
+        const pricePerItemRaw = totalPromoPrice / totalQty;
+        const roundedPricePerItem = Math.floor(pricePerItemRaw / 1000) * 1000;
+        const roundingSaved = pricePerItemRaw - roundedPricePerItem;
+        
+        return {
+            promoQty: bestPromoQty,
+            promoPrice: bestPromoPrice,
+            pricePerItem: roundedPricePerItem, 
+            pricePerItemRaw: pricePerItemRaw,   
+            roundingSaved: roundingSaved,       
+            discountPerItem: normalPrice - roundedPricePerItem,
+            totalPromoPrice: totalPromoPrice,
+            totalRoundedPrice: roundedPricePerItem * totalQty,
+            totalRoundingSaved: totalPromoPrice - (roundedPricePerItem * totalQty),
+            remainingQty: remainingQty,
+            bundleCount: bundleCount_total,
+            originalTotalPrice: totalQty * normalPrice,
+            totalDiscount: (totalQty * normalPrice) - totalPromoPrice
+        };
+    }
+    
+    return null;
+}
+
+
