@@ -69,7 +69,8 @@
     </div>
     
     <div class="menu-controls">
-      <button  onclick="openArtistModal(); closeSidebar()" class="control-button">🎨</button>
+      <button onclick="openArtistModal(); closeSidebar()" class="control-button">🎨</button>
+      <button onclick="openPromoRulesModal(); closeSidebar()" class="control-button">🏷️</button>
       <button id="fullscreenButton" class="control-button">⛶</button>
       <button id="refreshButton" class="control-button">↻</button>
     </div>
@@ -89,7 +90,7 @@
   <div class="cart-modal-content" id="cartModalContent">
     </div>
   <div class="cart-modal-footer">
-    <div class="cart-total">Total: Rp<span id="cartTotal">0</span></div>
+    <div class="cart-total"><span id="cartTotal">0</span></div>
     </div>
 </div>
 
@@ -270,7 +271,7 @@
   <div id="notification" class="notification" style="display: none;"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="script.js"></script>
+
   
   <div id="welcomeModal" class="modal">
     <div class="modal-content" onclick="event.stopPropagation()">
@@ -365,6 +366,34 @@
       </button>
     </form>
     <div class="artist-list" id="artistList"></div>
+  </div>
+</div>
+
+<!-- Modal Promo Rules -->
+<div id="promoRulesModal" class="modal-overlay" style="display: none;">
+  <div class="modal-content promo-modal-content" onclick="event.stopPropagation()">
+    <button class="close-modal" onclick="closePromoRulesModal()">×</button>
+    <h3>Aturan Diskon Bundle</h3>
+    
+    <div class="promo-info">
+      <p>Contoh: 1 stiker = Rp5.000, 3 stiker = Rp10.000, 5 stiker = Rp15.000</p>
+      <p>Harga akan dibagi rata dan dibulatkan ke bawah (ribuan terdekat)</p>
+    </div>
+    
+    <div class="promo-add-form">
+      <h4>Tambah Aturan Baru</h4>
+      <div class="promo-category-selection">
+        <label>Pilih Kategori:</label>
+        <div id="promoCategoryList" class="promo-category-list"></div>
+      </div>
+      <div class="promo-input-group">
+        <input type="number" id="newPromoQty" placeholder="Jumlah barang (contoh: 3)" min="1">
+        <input type="text" id="newPromoPrice" placeholder="Harga promo (contoh: 10000)" oninput="formatRupiahInput(this)">
+        <button onclick="addNewPromoRule()" class="btn-add-promo">+ Tambah</button>
+      </div>
+    </div>
+    
+    <div class="promo-rules-list" id="promoRulesList"></div>
   </div>
 </div>
 </body>
