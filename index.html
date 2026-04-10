@@ -105,16 +105,17 @@
       <form class="edit-form" onsubmit="saveEditedProduct(event)">
         <input type="hidden" name="category" id="editCategory">
         <input type="hidden" name="index" id="editIndex">
-        
-        <label>Nama Barang</label>
-        <input type="text" name="name" id="editName" required>
+      
+        <input type="hidden" name="name" id="editName">
 
         <label>Kode Barang</label>
         <input type="text" name="code" id="editCode" required>
+        
         <label>Artist</label>
-        <select name="artist" id="artistSelect-${category}">
+        <select name="artist" id="artistSelect-edit">
           <option value="">Tanpa Artist</option>
         </select>
+        
         <label>Gambar Barang</label>
         <div class="image-input-container image-paste-area">
           <div class="image-source-buttons">
@@ -131,9 +132,6 @@
 
         <label>Stok</label>
         <input type="number" name="stock" id="editStock" required min="0">
-        
-        <label>Stok Minimum</label>
-        <input type="number" name="minStock" id="editMinStock" required min="0">
         
         <button type="submit">💾 Simpan Perubahan</button>
       </form>
@@ -369,33 +367,44 @@
   </div>
 </div>
 
-<!-- Modal Promo Rules -->
+<!-- PERBAIKAN: Struktur modal promo dengan header sticky -->
 <div id="promoRulesModal" class="modal-overlay" style="display: none;">
   <div class="modal-content promo-modal-content" onclick="event.stopPropagation()">
-    <button class="close-modal" onclick="closePromoRulesModal()">×</button>
-    <h3>Aturan Diskon Bundle</h3>
-    
-    <div class="promo-info">
-      <p>Contoh: 1 stiker = Rp5.000, 3 stiker = Rp10.000, 5 stiker = Rp15.000</p>
-      <p>Harga akan dibagi rata dan dibulatkan ke bawah (ribuan terdekat)</p>
+    <div class="promo-modal-header">
+      <button class="close-modal" onclick="closePromoRulesModal()">×</button>
+      <h3>Aturan Diskon Bundle</h3>
     </div>
-    
-    <div class="promo-add-form">
-      <h4>Tambah Aturan Baru</h4>
-      <div class="promo-category-selection">
-        <label>Pilih Kategori:</label>
-        <div id="promoCategoryList" class="promo-category-list"></div>
+    <div class="modal-scrollable-content">
+      <div class="promo-info">
+        <p>Contoh: 1 stiker = Rp5.000, 3 stiker = Rp10.000, 5 stiker = Rp15.000</p>
+        <p>Harga akan dibagi rata dan dibulatkan ke bawah (ribuan terdekat)</p>
       </div>
-      <div class="promo-input-group">
-        <input type="number" id="newPromoQty" placeholder="Jumlah barang (contoh: 3)" min="1">
-        <input type="text" id="newPromoPrice" placeholder="Harga promo (contoh: 10000)" oninput="formatRupiahInput(this)">
-        <button onclick="addNewPromoRule()" class="btn-add-promo">+ Tambah</button>
+      
+      <div class="promo-add-form">
+        <h4>Tambah Aturan Baru</h4>
+        <div class="promo-category-selection">
+          <label>Pilih Kategori:</label>
+          <div id="promoCategoryList" class="promo-category-list"></div>
+        </div>
+        <div class="promo-input-group">
+          <input type="number" id="newPromoQty" placeholder="Jumlah barang (contoh: 3)" min="1">
+          <input type="text" id="newPromoPrice" placeholder="Harga promo (contoh: 10000)" oninput="formatRupiahInput(this)">
+          <button onclick="addNewPromoRule()" class="btn-add-promo">+ Tambah</button>
+        </div>
       </div>
+      
+      <div class="promo-rules-list" id="promoRulesList"></div>
     </div>
-    
-    <div class="promo-rules-list" id="promoRulesList"></div>
   </div>
 </div>
+
+<div id="deleteModeOverlay" class="delete-mode-overlay"></div>
+<div id="deleteModeBar" class="delete-mode-bar" style="display: none;">
+  <span class="selected-count" id="selectedCount">0 produk dipilih</span>
+  <button class="btn-delete-selected" id="btnDeleteSelected">🗑️ Hapus</button>
+  <button class="btn-cancel-delete" id="btnCancelDeleteMode">✖️ Batal</button>
+</div>
+
 </body>
 <script src="script.js"></script>
 </html>
