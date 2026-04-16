@@ -860,7 +860,9 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  margin-bottom: 8px;
 }
+
 .sales-item-img {
   width: 50px;
   height: 50px;
@@ -3156,25 +3158,8 @@ input:checked + .slider .emoji.moon {
   margin-left: 15px;
 }
 
-.rank-first {
-  background: linear-gradient(135deg, #FFD700, #FFEC8B);
-  border: 2px solid #FFD700;
-}
 
-.rank-second {
-  background: linear-gradient(135deg, #C0C0C0, #E8E8E8);
-  border: 2px solid #C0C0C0;
-}
 
-.rank-third {
-  background: linear-gradient(135deg, #CD7F32, #E8B886);
-  border: 2px solid #CD7F32;
-}
-
-.rank-other {
-  background: white;
-  border: 1px solid #ddd;
-}
 
 .artist-badge {
   display: inline-block;
@@ -3430,6 +3415,10 @@ form.add-form label:has(+ select[name="artist"]) {
   margin-top: 2px;
 }
 
+
+.sales-item-cell {
+  vertical-align: top;
+}
 
 #artistSalesFilter {
   padding: 8px 12px;
@@ -3885,10 +3874,19 @@ form.add-form label:has(+ select[name="artist"]) {
   font-size: 11px;
   color: #e74c3c;
   background: #fee;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 12px;
   display: inline-block;
-  margin-top: 4px;
+  margin-top: 8px;
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .sales-item-discount-info {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
 }
 
 .discount-badge {
@@ -4814,3 +4812,134 @@ form.add-form label:has(+ select[name="artist"]) {
   cursor: pointer;
   pointer-events: auto !important;
 } }
+
+
+
+
+
+.btn-form-all {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-form-all a {
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-form-all:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+
+.btn-donate {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+}
+
+.btn-donate a {
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-donate .donate-icon {
+  font-size: 22px;
+  animation: heartbeat 1.5s ease infinite;
+}
+
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.2);
+  }
+  40% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.btn-donate:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(245, 87, 108, 0.4);
+}
+
+.welcome-close-btn {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 20px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.welcome-close-btn:hover {
+  background-color: #2ecc71;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+}
+
+@media (max-width: 600px) {
+  .welcome-buttons-container {
+    flex-direction: column;
+  }
+  
+  .welcome-buttons-left,
+  .welcome-buttons-right {
+    text-align: center;
+    width: 100%;
+  }
+  
+  .welcome-buttons-right {
+    text-align: center;
+    margin-top: 15px;
+  }
+  
+  .btn-form-all,
+  .btn-donate {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+  
+  .btn-form-all a,
+  .btn-donate a {
+    justify-content: center;
+  }
+}
+
+
