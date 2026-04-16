@@ -198,6 +198,9 @@ function loadFromIndexedDB(storeName) {
 
 async function loadFromDatabase() {
   try {
+   
+    localStorage.removeItem('hasSeenWelcome');
+    
     console.log("Membuka database...");
     await openDatabase();
     console.log("Database terbuka.");
@@ -248,15 +251,12 @@ async function loadFromDatabase() {
       artists = [];
     }
 
-    
     try {
       const loadedPromoRules = await loadFromIndexedDB(STORE_NAMES.PROMO_RULES);
-      
       
       if (Array.isArray(loadedPromoRules) && loadedPromoRules.length > 0) {
         promoRules = loadedPromoRules;
         console.log("Promo rules dimuat:", promoRules.length, "aturan");
-        
         
         promoRules.forEach((rule, index) => {
           if (!rule.id) {
@@ -272,7 +272,6 @@ async function loadFromDatabase() {
         promoRules = [];
         console.log("Promo rules kosong (array kosong)");
       } else if (loadedPromoRules && typeof loadedPromoRules === 'object' && !Array.isArray(loadedPromoRules)) {
-        
         console.warn("Promo rules dimuat dalam format objek, mencoba konversi ke array");
         const rulesArray = Object.values(loadedPromoRules).flat();
         if (rulesArray.length > 0 && rulesArray[0] && typeof rulesArray[0] === 'object') {
@@ -286,7 +285,6 @@ async function loadFromDatabase() {
         promoRules = [];
         console.log("Promo rules tidak tersedia atau format tidak dikenali, menggunakan array kosong");
       }
-      
       
       if (promoRules.length > 0) {
         console.log("Ringkasan promo rules yang dimuat:");
@@ -303,7 +301,6 @@ async function loadFromDatabase() {
       console.warn("Gagal memuat promo rules, menggunakan array kosong:", error);
       promoRules = [];
     }
-    
 
     console.log("Keranjang, penjualan, pre-order, metode pembayaran, artists, dan promo rules dimuat.");
 
@@ -931,7 +928,7 @@ function renderCartModalContent() {
     cartContent.innerHTML = html;
     
     const totalDiscount = totalOriginal - total;
-    let totalHtml = `<div class="cart-total-final">💰 Total: Rp${formatRupiah(Math.floor(total))}</div>`;
+    let totalHtml = `<div class="cart-total-final">Total: Rp${formatRupiah(Math.floor(total))}</div>`;
     if (totalDiscount > 0) {
         totalHtml += `<div class="cart-savings">  Hemat: Rp${formatRupiah(totalDiscount)}</div>`;
     }
@@ -2235,10 +2232,10 @@ function renderSalesTable() {
               <div class="sales-item-info">
                 <div class="sales-item-code"><strong>${escapeHtml(item.code || '-')}</strong></div>
                 <div class="sales-item-category">${escapeHtml(item.category)}</div>
-                ${hasDiscount ? `<div class="sales-item-discount-info"> Promo: ${item.qty} barang → Rp${formatRupiah(item.promoPriceRaw)}/item</div>` : ''}
               </div>
             </div>
-           </td>
+            ${hasDiscount ? `<div class="sales-item-discount-info">Promo: ${item.qty} barang → Rp${formatRupiah(item.promoPriceRaw)}/item</div>` : ''}
+          </td>
           <td class="price-cell">
             <div class="price-container">
               <span class="final-price">Rp${formatRupiah(totalPerItemRounded)}</span>
@@ -2254,7 +2251,7 @@ function renderSalesTable() {
           </td>
           <td class="sales-actions-cell">
             <button class="btn-delete-sales" onclick="deleteSalesRecord(${saleIndex})" title="Hapus transaksi">
-              🗑️ Hapus
+              Hapus
             </button>
           </td>
         </tr>
@@ -2271,9 +2268,9 @@ function renderSalesTable() {
   html += `
     <div class="sales-summary">
       <div class="summary-card">
-        <h4>📊 Ringkasan Penjualan</h4>
+        <h4>Ringkasan Penjualan</h4>
         <div class="summary-row total-after-promo">
-          <span>💰 Total Penjualan (harga promo asli):</span>
+          <span> Total Penjualan (harga promo asli):</span>
           <span class="after-promo-amount">Rp${formatRupiah(grandTotalAfterPromo)}</span>
         </div>
         <div class="summary-row total-rounded">
@@ -3229,15 +3226,17 @@ function showHelp() {
 }
 
 function closeWelcomeModal() {
-  document.getElementById('welcomeModal').style.display = 'none';
-  localStorage.setItem('hasSeenWelcome', 'true');
+  const welcomeModal = document.getElementById('welcomeModal');
+  if (welcomeModal) {
+    welcomeModal.style.display = 'none';
+  }
   document.body.classList.remove('modal-open');
 }
 
 function checkWelcomeMessage() {
-  const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
-  if (!hasSeenWelcome) {
-    document.getElementById('welcomeModal').style.display = 'flex';
+  const welcomeModal = document.getElementById('welcomeModal');
+  if (welcomeModal) {
+    welcomeModal.style.display = 'flex';
   }
 }
 
@@ -4014,10 +4013,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    checkWelcomeMessage();
+    checkWelcomeMessage(); 
     setupModalCloseOnOutsideClick();
     initializeImagePaste();
-    
     
     const btnDeleteSelected = document.getElementById('btnDeleteSelected');
     const btnCancelDeleteMode = document.getElementById('btnCancelDeleteMode');
@@ -4548,7 +4546,8 @@ function renderArtistSalesTable(selectedArtist = '') {
   
   let html = `
     <div class="artist-ranking-header">
-      <h4>Peringkat Artist Berdasarkan Pendapatan (Setelah Promo)</h4>
+      <h4>Peringkat Artist Berdasarkan </h4>
+      <br>
     </div>
     <div class="artist-ranking-list">
   `;
@@ -4570,16 +4569,12 @@ function renderArtistSalesTable(selectedArtist = '') {
             </div>
             <div class="artist-rank-stats">
               ${hasDiscount ? `<span class="stat-item strikethrough">Rp${formatRupiah(artist.originalSales)}</span>` : ''}
-              <span class="stat-item highlight">💰 Rp${formatRupiah(artist.totalSales)}</span>
-              ${hasDiscount ? `<span class="stat-item discount">📉 Diskon: Rp${formatRupiah(artist.totalDiscount)}</span>` : ''}
-              <span class="stat-item">📦 ${artist.totalItems} item</span>
-              <span class="stat-item">🛒 ${artist.transactionCount} transaksi</span>
+              <span class="stat-item highlight"> Rp${formatRupiah(artist.totalSales)}</span>
+              <span class="stat-item">Terjual ${artist.totalItems} item</span>
             </div>
           </div>
         </div>
-        <div class="artist-rank-badge ${rankClass}">
-          ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎯'}
-        </div>
+
       </div>
     `;
   });
@@ -6162,3 +6157,5 @@ function clearAllLongPressFlags() {
     card.classList.remove('delete-mode-transition');
   });
 }
+
+
