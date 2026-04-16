@@ -275,16 +275,29 @@
     <div class="modal-content" onclick="event.stopPropagation()">
       <h3>Terima kasih telah mencoba aplikasi penjualan Caca!</h3>
       <div class="welcome-message">
-        <p>Aplikasi ini masih tahap beta</p>
-        <p>Jika teman2 ingin masukkan terhadap aplikasi ini</p>
+        <p>Aplikasi sudah bisa anda jalankan dengan normal</p>
+        <p>Jika ada masukan dan menemuikan permasalahan</p>
         <p>silahkan masuk kesini~</p>
-        <ul>
-          <button class="action-btn"> 
-          <a href="https://forms.gle/ds821SSuEtHaniqi6"> LINK FORM</a></button>
+          
+          <div class="welcome-buttons-container">
+        <div class="welcome-buttons-left">
+          <button class="btn-form-all"> 
+            <a href="https://forms.gle/ds821SSuEtHaniqi6">Beri masukan</a>
+          </button>
+        </div>
+        <div class="welcome-buttons-right">
+          <p class="support-text">Jangan lupa support devnya hehe ~</p>
+          <button class="btn-donate"> 
+            <a href="https://trakteer.id/cacacafe"> 
+              <span class="donate-icon">☕</span> Trakteer
+            </a>
+          </button>
+        </div>
       </div>
-      <button onclick="closeWelcomeModal()" class="welcome-close-btn">Mengerti</button>
     </div>
+    <button onclick="closeWelcomeModal()" class="welcome-close-btn">Mengerti</button> 
   </div>
+</div>
 
   <div id="checkoutModal" class="modal-overlay" style="display: none;">
     <div class="modal-content checkout-modal-content" onclick="event.stopPropagation()">
@@ -403,6 +416,26 @@
   <span class="selected-count" id="selectedCount">0 produk dipilih</span>
   <button class="btn-delete-selected" id="btnDeleteSelected">🗑️ Hapus</button>
   <button class="btn-cancel-delete" id="btnCancelDeleteMode">✖️ Batal</button>
+</div>
+
+<!-- Modal Rename File untuk Export -->
+<div id="renameFileModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content rename-modal-content" onclick="event.stopPropagation()">
+        <button class="close-modal" onclick="closeRenameFileModal()">×</button>
+        <h3>Simpan File Backup</h3>
+        <div class="rename-file-input-group">
+            <label>Nama File:</label>
+            <input type="text" id="renameFileNameInput" placeholder="backup_penjualan" value="backup_penjualan">
+            <div class="file-extension">.json (akan ditambahkan otomatis)</div>
+            <div class="file-name-preview" id="fileNamePreview">
+                <strong>Preview:</strong> backup_penjualan.json
+            </div>
+        </div>
+        <div class="rename-modal-actions">
+            <button class="btn-rename-confirm" onclick="confirmExportWithRename()">💾 Simpan</button>
+            <button class="btn-rename-cancel" onclick="closeRenameFileModal()">✖️ Batal</button>
+        </div>
+    </div>
 </div>
 
 </body>
